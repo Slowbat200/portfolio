@@ -3,7 +3,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 
-type SystemState = "initializing" | "booting" | "login" | "desktop";
+type SystemState = "initializing" | "booting" | "login" | "desktop" | "shutdown";
 
 type SystemContextType = {
   state: SystemState;

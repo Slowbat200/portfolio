@@ -3,7 +3,22 @@
 import { useState, useRef, useEffect } from "react";
 import { useSystem } from "../system/system-context";
 import { Button } from "@/components/ui/button";
-import { LogOut, Terminal, User, Folder, Settings, X, Minus, Square } from "lucide-react";
+import {
+  LogOut,
+  Terminal,
+  User,
+  Folder,
+  Settings,
+  X,
+  Minus,
+  Square,
+  RefreshCw,
+  Power,
+} from "lucide-react";
+import IdentityApp from "./apps/identity";
+import ProjectsApp from "./apps/projects";
+import TerminalApp from "./apps/terminal";
+import SettingsApp from "./apps/settings";
 
 interface IconPosition {
   id: string;
@@ -17,6 +32,8 @@ interface WindowData {
   id: string;
   title: string;
   isOpen: boolean;
+  isMaximized: boolean;
+  isMinimized: boolean;
   x: number;
   y: number;
   zIndex: number;
@@ -31,105 +48,45 @@ export default function Desktop() {
       id: "identity",
       title: "IDENTITY_PROFILE",
       isOpen: false,
+      isMaximized: false,
+      isMinimized: false,
       x: 100,
       y: 100,
       zIndex: 10,
-      content: (
-        <div className="space-y-4 font-mono text-xs text-emerald-500/90">
-          <div className="p-3 border border-emerald-500/20 bg-emerald-500/5 rounded">
-            <p className="text-emerald-400 font-bold mb-2 uppercase tracking-wider"> Subject_Profile</p>
-            <p><span className="text-zinc-500">NAME:</span> Jan Doe</p>
-            <p><span className="text-zinc-500">ROLE:</span> Full Stack Developer / Cyber Security Enthusiast</p>
-            <p><span className="text-zinc-500">LOCATION:</span> Secure_Node_01</p>
-          </div>
-          <div className="p-3 border border-emerald-500/20 bg-emerald-500/5 rounded">
-            <p className="text-emerald-400 font-bold mb-2 uppercase tracking-wider">Bio_Data</p>
-            <p>A passionate developer focused on building secure, scalable, and high-performance applications. Specialized in modern web technologies and defensive security practices.</p>
-          </div>
-        </div>
-      ),
+      content: <IdentityApp />,
     },
     {
       id: "encrypted",
       title: "PROJECT_ARCHIVES",
       isOpen: false,
+      isMaximized: false,
+      isMinimized: false,
       x: 150,
       y: 150,
       zIndex: 10,
-      content: (
-        <div className="space-y-4 font-mono text-xs text-blue-500/90">
-          <div className="p-3 border border-blue-500/20 bg-blue-500/5 rounded">
-            <p className="text-blue-400 font-bold mb-2 uppercase tracking-wider"> active_nodes</p>
-            <div className="space-y-2">
-              <div className="flex justify-between items-center border-b border-blue-500/10 pb-1">
-                <span>Project_Alpha</span>
-                <span className="text-[10px] bg-blue-500/20 px-1">DEPLOYED</span>
-              </div>
-              <div className="flex justify-between items-center border-b border-blue-500/10 pb-1">
-                <span>Cyber_Shield</span>
-                <span className="text-[10px] bg-emerald-500/20 px-1 text-emerald-400">ACTIVE</span>
-              </div>
-              <div className="flex justify-between items-center border-b border-blue-500/10 pb-1">
-                <span>Neural_Net_v2</span>
-                <span className="text-[10px] bg-amber-500/20 px-1 text-amber-400">ENCRYPTED</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      ),
+      content: <ProjectsApp />,
     },
     {
       id: "terminal",
       title: "ROOT_TERMINAL",
       isOpen: false,
+      isMaximized: false,
+      isMinimized: false,
       x: 200,
       y: 200,
       zIndex: 10,
-      content: (
-        <div className="bg-black/80 p-4 h-full font-mono text-xs text-emerald-500">
-          <p className="mb-2">Last login: {new Date().toLocaleDateString()} on ttys001</p>
-          <p className="flex gap-2">
-            <span className="text-emerald-400">root@system:~$</span>
-            <span className="animate-pulse">_</span>
-          </p>
-          <div className="mt-4 text-zinc-600">
-            <p>Available commands:</p>
-            <p>- status : Check system integrity</p>
-            <p>- logs   : View security logs</p>
-            <p>- bypass : [REDACTED]</p>
-          </div>
-        </div>
-      ),
+      content: <TerminalApp />,
     },
     {
       id: "settings",
       title: "CORE_SETTINGS",
       isOpen: false,
+      isMaximized: false,
+      isMinimized: false,
       x: 250,
       y: 250,
       zIndex: 10,
-      content: (
-        <div className="space-y-4 font-mono text-xs text-zinc-400">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-2 border border-zinc-800 rounded">
-              <span>Dark_Mode</span>
-              <div className="w-8 h-4 bg-emerald-500/20 rounded-full relative">
-                <div className="absolute right-1 top-1 w-2 h-2 bg-emerald-500 rounded-full" />
-              </div>
-            </div>
-            <div className="flex items-center justify-between p-2 border border-zinc-800 rounded">
-              <span>Encryption_Level</span>
-              <span className="text-emerald-500">AES-256</span>
-            </div>
-            <div className="flex items-center justify-between p-2 border border-zinc-800 rounded">
-              <span>System_Volume</span>
-              <div className="w-24 h-1 bg-zinc-800 rounded-full relative">
-                <div className="absolute left-0 top-0 w-3/4 h-full bg-blue-500 rounded-full" />
-              </div>
-            </div>
-          </div>
-        </div>
-      ),
+      content: <SettingsApp />,
     },
   ]);
 
@@ -179,22 +136,24 @@ export default function Desktop() {
     }
   };
 
+  const bringToFront = (id: string) => {
+    setWindows((prev) => {
+      const maxZ = Math.max(...prev.map((w) => w.zIndex), 10);
+      return prev.map((w) => (w.id === id ? { ...w, zIndex: maxZ + 1 } : w));
+    });
+  };
+
   const handleWindowMouseDown = (e: React.MouseEvent, id: string) => {
     const window = windows.find((w) => w.id === id);
-    if (window) {
+    if (window && !window.isMaximized) {
       draggingWindowId.current = id;
       offset.current = {
         x: e.clientX - window.x,
         y: e.clientY - window.y,
       };
-      
-      // Bring to front
-      setWindows((prev) => {
-        const maxZ = Math.max(...prev.map((w) => w.zIndex), 10);
-        return prev.map((w) => 
-          w.id === id ? { ...w, zIndex: maxZ + 1 } : w
-        );
-      });
+      bringToFront(id);
+    } else if (window) {
+      bringToFront(id);
     }
   };
 
@@ -202,9 +161,23 @@ export default function Desktop() {
     setWindows((prev) => {
       const maxZ = Math.max(...prev.map((w) => w.zIndex), 10);
       return prev.map((w) =>
-        w.id === id ? { ...w, isOpen: true, zIndex: maxZ + 1 } : w
+        w.id === id
+          ? { ...w, isOpen: true, isMinimized: false, zIndex: maxZ + 1 }
+          : w
       );
     });
+  };
+
+  const handleWindowMinimize = (id: string) => {
+    setWindows((prev) =>
+      prev.map((w) => (w.id === id ? { ...w, isMinimized: true } : w))
+    );
+  };
+
+  const handleWindowMaximize = (id: string) => {
+    setWindows((prev) =>
+      prev.map((w) => (w.id === id ? { ...w, isMaximized: !w.isMaximized } : w))
+    );
   };
 
   const handleWindowClose = (id: string) => {
@@ -264,8 +237,8 @@ export default function Desktop() {
       {/* Cybersecurity Background Overlay */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {/* Digital Grid */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:32px_32px]" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:128px_128px]" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-size-[32px_32px]" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-size-[128px_128px]" />
 
         {/* Glowing Accents */}
         <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-emerald-500/10 blur-[120px] rounded-full" />
@@ -273,11 +246,14 @@ export default function Desktop() {
         <div className="absolute -bottom-[10%] left-[20%] w-[50%] h-[50%] bg-indigo-500/5 blur-[120px] rounded-full" />
 
         {/* Scanline effect */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_50%,rgba(0,0,0,0.1)_50%)] bg-[size:100%_4px] pointer-events-none opacity-20" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_50%,rgba(0,0,0,0.1)_50%)] bg-size[100%_4px] pointer-events-none opacity-20" />
       </div>
 
       {/* Desktop Icons Container */}
-      <div className="relative flex-1 p-0 overflow-hidden" onClick={() => isStartMenuOpen && setIsStartMenuOpen(false)}>
+      <div
+        className="relative flex-1 p-0 overflow-hidden"
+        onClick={() => isStartMenuOpen && setIsStartMenuOpen(false)}
+      >
         {icons.map((icon) => (
           <DesktopIcon
             key={icon.id}
@@ -296,10 +272,14 @@ export default function Desktop() {
             key={window.id}
             title={window.title}
             isOpen={window.isOpen}
+            isMinimized={window.isMinimized}
+            isMaximized={window.isMaximized}
             x={window.x}
             y={window.y}
             zIndex={window.zIndex}
             onClose={() => handleWindowClose(window.id)}
+            onMinimize={() => handleWindowMinimize(window.id)}
+            onMaximize={() => handleWindowMaximize(window.id)}
             onMouseDown={(e) => handleWindowMouseDown(e, window.id)}
           >
             {window.content}
@@ -315,59 +295,91 @@ export default function Desktop() {
                   <User className="w-6 h-6 text-emerald-500" />
                 </div>
                 <div>
-                  <p className="text-xs font-mono text-emerald-500 font-bold">JD_ADMIN</p>
-                  <p className="text-[10px] font-mono text-zinc-500">LEVEL: ROOT</p>
+                  <p className="text-xs font-mono text-emerald-500 font-bold">
+                    JD_ADMIN
+                  </p>
+                  <p className="text-[10px] font-mono text-zinc-500">
+                    LEVEL: ROOT
+                  </p>
                 </div>
               </div>
             </div>
-            
+
             <div className="p-2 py-3 space-y-1">
-              <StartMenuItem 
-                icon={<Terminal className="w-4 h-4" />} 
-                label="System Terminal" 
+              <StartMenuItem
+                icon={<Terminal className="w-4 h-4" />}
+                label="System Terminal"
                 onClick={() => {
                   handleWindowOpen("terminal");
                   setIsStartMenuOpen(false);
                 }}
               />
-              <StartMenuItem 
-                icon={<Folder className="w-4 h-4" />} 
-                label="File Explorer" 
+              <StartMenuItem
+                icon={<Folder className="w-4 h-4" />}
+                label="File Explorer"
                 onClick={() => {
                   handleWindowOpen("encrypted");
                   setIsStartMenuOpen(false);
                 }}
               />
-              <StartMenuItem 
-                icon={<Settings className="w-4 h-4" />} 
-                label="Network Config" 
+              <StartMenuItem
+                icon={<Settings className="w-4 h-4" />}
+                label="Network Config"
                 onClick={() => {
                   handleWindowOpen("settings");
                   setIsStartMenuOpen(false);
                 }}
               />
               <div className="h-px bg-emerald-500/10 my-2" />
-              <StartMenuItem 
-                icon={<User className="w-4 h-4" />} 
-                label="Identity Profile" 
+              <StartMenuItem
+                icon={<User className="w-4 h-4" />}
+                label="Identity Profile"
                 onClick={() => {
                   handleWindowOpen("identity");
                   setIsStartMenuOpen(false);
                 }}
               />
               <div className="h-px bg-emerald-500/10 my-2" />
-              <StartMenuItem 
-                icon={<LogOut className="w-4 h-4 text-red-400" />} 
-                label="Terminate Session" 
+              <div className="grid grid-cols-2 gap-2 px-2 pb-2">
+                <button
+                  onClick={() => {
+                    sessionStorage.removeItem("booted");
+                    sessionStorage.removeItem("loggedIn");
+                    setState("booting");
+                  }}
+                  className="flex flex-col items-center gap-1.5 p-2 rounded-md hover:bg-emerald-500/10 text-emerald-500/60 hover:text-emerald-400 transition-all border border-emerald-500/10"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span className="text-[9px] font-mono uppercase tracking-tighter">
+                    Restart
+                  </span>
+                </button>
+                <button
+                  onClick={() => {
+                    sessionStorage.removeItem("booted");
+                    sessionStorage.removeItem("loggedIn");
+                    setState("shutdown");
+                  }}
+                  className="flex flex-col items-center gap-1.5 p-2 rounded-md hover:bg-red-500/10 text-red-500/60 hover:text-red-400 transition-all border border-red-500/10"
+                >
+                  <Power className="w-4 h-4" />     
+                  <span className="text-[9px] font-mono uppercase tracking-tighter">
+                    Shutdown    
+                  </span>
+                </button>
+              </div>
+              <div className="h-px bg-emerald-500/10 my-2" />
+              <StartMenuItem  
+                icon={<LogOut className="w-4 h-4 text-zinc-400" />}
+                label="Log Out"
                 onClick={() => {
-                  sessionStorage.removeItem("booted");
                   sessionStorage.removeItem("loggedIn");
-                  setState("booting");
+                  setState("login");
                 }}
-                className="text-red-400/70 hover:text-red-400 hover:bg-red-400/10"
+                className="text-zinc-400/70 hover:text-zinc-200 hover:bg-zinc-800"
               />
             </div>
-            
+
             <div className="p-2 bg-zinc-950/50 text-[9px] font-mono text-zinc-600 flex justify-between items-center px-4">
               <span>OS_VERSION: 1.0.4</span>
               <span className="flex items-center gap-1">
@@ -383,29 +395,63 @@ export default function Desktop() {
         <Button
           variant="ghost"
           className="h-10 text-emerald-500 font-mono font-bold px-4 hover:bg-emerald-500/10 hover:text-emerald-400 transition-all border border-transparent hover:border-emerald-500/30"
-            onClick={handleStartMenu}
+          onClick={handleStartMenu}
         >
           <span className="mr-2">⚡</span> SYSTEM
         </Button>
 
-        <div className="flex-1" />
+        {/* Taskbar Icons */}
+        <div className="flex-1 flex items-center gap-2 px-4 overflow-x-auto no-scrollbar">
+          {windows.filter(w => w.isOpen).map((window) => (
+            <button
+              key={window.id}
+              onClick={() => {
+                if (window.isMinimized) {
+                  handleWindowOpen(window.id);
+                } else {
+                  bringToFront(window.id);
+                }
+              }}
+              className={`h-8 px-3 rounded border font-mono text-[10px] flex items-center gap-2 transition-all ${
+                !window.isMinimized 
+                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" 
+                  : "bg-zinc-900/50 border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-400"
+              }`}
+            >
+              <div className={`w-1.5 h-1.5 rounded-full ${!window.isMinimized ? "bg-emerald-500 animate-pulse" : "bg-zinc-700"}`} />
+              {window.title}
+            </button>
+          ))}
+        </div>
 
-        <div className="h-10 px-4 bg-zinc-950/50 border border-zinc-800 rounded-md flex items-center gap-4 text-xs font-mono text-emerald-500/70">
+        {/* System Controls */}
+        <div className="flex items-center gap-4 px-4 border-l border-zinc-800 text-xs font-mono text-emerald-500/70">
           <div className="flex items-center gap-2 border-r border-zinc-800 pr-4">
             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>SECURE_LINK: ESTABLISHED</span>
           </div>
           <button
             onClick={() => {
-              sessionStorage.removeItem("booted");
               sessionStorage.removeItem("loggedIn");
-              setState("booting");
+              setState("login");
             }}
-            className="hover:text-red-500 transition-colors flex items-center gap-2"
-            title="Terminate Session"
+            className="hover:text-amber-500 transition-colors flex items-center gap-2"
+            title="Log Out"
           >
             <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">EXIT_OS</span>
+            <span className="hidden sm:inline">LOG_OUT</span>
+          </button>
+          <button
+            onClick={() => {
+              sessionStorage.removeItem("booted");
+              sessionStorage.removeItem("loggedIn");
+              setState("shutdown");
+            }}
+            className="hover:text-red-500 transition-colors flex items-center gap-2"
+            title="Shutdown System"
+          >
+            <Power className="w-4 h-4" />
+            <span className="hidden sm:inline">SHUTDOWN</span>
           </button>
           <span className="text-zinc-500 ml-2">
             {new Date().toLocaleTimeString([], {
@@ -423,32 +469,49 @@ function Window({
   title,
   children,
   isOpen,
+  isMinimized,
+  isMaximized,
   x,
   y,
   zIndex,
   onClose,
+  onMinimize,
+  onMaximize,
   onMouseDown,
 }: {
   title: string;
   children: React.ReactNode;
   isOpen: boolean;
+  isMinimized: boolean;
+  isMaximized: boolean;
   x: number;
   y: number;
   zIndex: number;
   onClose: () => void;
+  onMinimize: () => void;
+  onMaximize: () => void;
   onMouseDown: (e: React.MouseEvent) => void;
 }) {
-  if (!isOpen) return null;
+  if (!isOpen || isMinimized) return null;
 
   return (
     <div
-      className="absolute transition-transform min-w-[320px] min-h-[200px] bg-zinc-900/90 border border-zinc-800 rounded-lg shadow-2xl flex flex-col backdrop-blur-xl animate-in zoom-in-95 fade-in duration-200 overflow-hidden"
-      style={{ left: x, top: y, zIndex }}
+      className={`absolute transition-transform min-w-[320px] min-h-[200px] bg-zinc-900/90 border border-zinc-800 rounded-lg shadow-2xl flex flex-col backdrop-blur-xl animate-in zoom-in-95 fade-in duration-200 overflow-hidden ${
+        isMaximized ? "inset-2 z-100 rounded-none" : ""
+      }`}
+      style={{
+        left: isMaximized ? 0 : x,
+        top: isMaximized ? 0 : y,
+        width: isMaximized ? "calc(100% - 0px)" : "auto",
+        height: isMaximized ? "calc(100% - 0px)" : "auto",
+        zIndex: isMaximized ? 100 : zIndex,
+        transform: isMaximized ? "none" : undefined,
+      }}
     >
       {/* Window Header */}
       <div
         className="h-9 bg-zinc-950/50 border-b border-zinc-800 flex items-center justify-between px-3 cursor-move select-none"
-        onMouseDown={onMouseDown}
+        onMouseDown={!isMaximized ? onMouseDown : undefined}
       >
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-emerald-500/50" />
@@ -457,10 +520,22 @@ function Window({
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <button className="p-1 hover:bg-zinc-800 rounded transition-colors group">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onMinimize();
+            }}
+            className="p-1 hover:bg-zinc-800 rounded transition-colors group"
+          >
             <Minus className="w-3 h-3 text-zinc-600 group-hover:text-zinc-400" />
           </button>
-          <button className="p-1 hover:bg-zinc-800 rounded transition-colors group">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onMaximize();
+            }}
+            className="p-1 hover:bg-zinc-800 rounded transition-colors group"
+          >
             <Square className="w-3 h-3 text-zinc-600 group-hover:text-zinc-400" />
           </button>
           <button
@@ -483,8 +558,12 @@ function Window({
       {/* Status Bar */}
       <div className="h-6 bg-zinc-950/30 border-t border-zinc-800/50 flex items-center px-3 justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-[8px] font-mono text-zinc-600 uppercase">Status: </span>
-          <span className="text-[8px] font-mono text-emerald-500/70 uppercase animate-pulse">Synced</span>
+          <span className="text-[8px] font-mono text-zinc-600 uppercase">
+            Status:{" "}
+          </span>
+          <span className="text-[8px] font-mono text-emerald-500/70 uppercase animate-pulse">
+            Synced
+          </span>
         </div>
         <span className="text-[8px] font-mono text-zinc-600">SECURE_ENV</span>
       </div>
@@ -492,19 +571,19 @@ function Window({
   );
 }
 
-function StartMenuItem({ 
-  icon, 
-  label, 
-  onClick, 
-  className 
-}: { 
-  icon: React.ReactNode, 
-  label: string, 
-  onClick?: () => void,
-  className?: string
+function StartMenuItem({
+  icon,
+  label,
+  onClick,
+  className,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick?: () => void;
+  className?: string;
 }) {
   return (
-    <button 
+    <button
       onClick={onClick}
       className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-mono text-emerald-500/80 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-md transition-all group ${className}`}
     >
@@ -516,20 +595,20 @@ function StartMenuItem({
   );
 }
 
-function DesktopIcon({ 
-  icon, 
-  label, 
-  x, 
-  y, 
+function DesktopIcon({
+  icon,
+  label,
+  x,
+  y,
   onMouseDown,
-  onDoubleClick
-}: { 
-  icon: React.ReactNode, 
-  label: string, 
-  x: number, 
-  y: number, 
-  onMouseDown: (e: React.MouseEvent) => void,
-  onDoubleClick: () => void
+  onDoubleClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  x: number;
+  y: number;
+  onMouseDown: (e: React.MouseEvent) => void;
+  onDoubleClick: () => void;
 }) {
   return (
     <button
