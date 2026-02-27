@@ -1,6 +1,6 @@
 export default function SettingsApp() {
   return (
-    <div className="space-y-4 font-mono text-xs text-zinc-400">
+    <div className="space-y-4 font-mono text-xs text-zinc-400 p-4">
       <div className="space-y-3">
         <div className="flex items-center justify-between p-2 border border-zinc-800 rounded">
           <span>Dark_Mode</span>

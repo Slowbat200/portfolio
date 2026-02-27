@@ -1,6 +1,6 @@
 export default function ProjectsApp() {
   return (
-    <div className="space-y-4 font-mono text-xs text-blue-500/90">
+    <div className="space-y-4 font-mono text-xs text-blue-500/90 p-4">
       <div className="p-3 border border-blue-500/20 bg-blue-500/5 rounded">
         <p className="text-blue-400 font-bold mb-2 uppercase tracking-wider">
           {" "}

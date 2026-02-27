@@ -14,6 +14,7 @@ import {
   Square,
   RefreshCw,
   Power,
+  Trash2,
 } from "lucide-react";
 import IdentityApp from "./apps/identity";
 import ProjectsApp from "./apps/projects";
@@ -41,7 +42,7 @@ interface WindowData {
 }
 
 export default function Desktop() {
-  const { setState } = useSystem();
+  const { setState, fileSystem } = useSystem();
   const [isStartMenuOpen, setIsStartMenuOpen] = useState(false);
   const [windows, setWindows] = useState<WindowData[]>([
     {
@@ -119,7 +120,84 @@ export default function Desktop() {
       label: "Core Settings",
       icon: <Settings className="w-8 h-8 text-zinc-400" />,
     },
+    {
+      id: "trash",
+      x: 24,
+      y: 504,
+      label: "Trash",
+      icon: <Trash2 className="w-8 h-8 text-zinc-500" />,
+    },
   ]);
+
+  // Handle icon position persistence and dynamic icons
+  useEffect(() => {
+    const savedPositions = localStorage.getItem("desktop_icon_positions");
+    if (savedPositions) {
+      try {
+        const positions = JSON.parse(savedPositions);
+        setIcons((prev) =>
+          prev.map((icon) =>
+            positions[icon.id]
+              ? { ...icon, x: positions[icon.id].x, y: positions[icon.id].y }
+              : icon,
+          ),
+        );
+      } catch (e) {
+        console.error("Failed to load icon positions", e);
+      }
+    }
+  }, []);
+
+  // Sync dynamic icons from FileSystem
+  useEffect(() => {
+    const desktopFolder = (fileSystem["Desktop"] as any) || {};
+    const desktopFiles = Object.keys(desktopFolder);
+
+    setIcons((prev) => {
+      const systemIconIds = ["identity", "encrypted", "terminal", "settings", "trash"];
+      const currentDynamicIcons = prev.filter(
+        (icon) => !systemIconIds.includes(icon.id),
+      );
+      const currentDynamicIds = currentDynamicIcons.map((icon) =>
+        icon.id.replace("fs-", ""),
+      );
+
+      // Remove icons for deleted files
+      let nextIcons = prev.filter((icon) => {
+        if (systemIconIds.includes(icon.id)) return true;
+        const fileName = icon.id.replace("fs-", "");
+        return desktopFiles.includes(fileName);
+      });
+
+      // Add icons for new files
+      desktopFiles.forEach((fileName, index) => {
+        if (!currentDynamicIds.includes(fileName)) {
+          const isDir = typeof desktopFolder[fileName] === "object";
+          nextIcons.push({
+            id: `fs-${fileName}`,
+            label: fileName,
+            x: 144, // Default to second column
+            y: 24 + (nextIcons.length - systemIconIds.length) * 120,
+            icon: isDir ? (
+              <Folder className="w-8 h-8 text-blue-400" />
+            ) : (
+              <Terminal className="w-8 h-8 text-zinc-400" />
+            ),
+          });
+        }
+      });
+
+      return nextIcons;
+    });
+  }, [fileSystem]);
+
+  const saveIconPositions = (updatedIcons: IconPosition[]) => {
+    const positions = updatedIcons.reduce((acc, icon) => {
+      acc[icon.id] = { x: icon.x, y: icon.y };
+      return acc;
+    }, {} as any);
+    localStorage.setItem("desktop_icon_positions", JSON.stringify(positions));
+  };
 
   const draggingIconId = useRef<string | null>(null);
   const draggingWindowId = useRef<string | null>(null);
@@ -163,26 +241,28 @@ export default function Desktop() {
       return prev.map((w) =>
         w.id === id
           ? { ...w, isOpen: true, isMinimized: false, zIndex: maxZ + 1 }
-          : w
+          : w,
       );
     });
   };
 
   const handleWindowMinimize = (id: string) => {
     setWindows((prev) =>
-      prev.map((w) => (w.id === id ? { ...w, isMinimized: true } : w))
+      prev.map((w) => (w.id === id ? { ...w, isMinimized: true } : w)),
     );
   };
 
   const handleWindowMaximize = (id: string) => {
     setWindows((prev) =>
-      prev.map((w) => (w.id === id ? { ...w, isMaximized: !w.isMaximized } : w))
+      prev.map((w) =>
+        w.id === id ? { ...w, isMaximized: !w.isMaximized } : w,
+      ),
     );
   };
 
   const handleWindowClose = (id: string) => {
     setWindows((prev) =>
-      prev.map((w) => (w.id === id ? { ...w, isOpen: false } : w))
+      prev.map((w) => (w.id === id ? { ...w, isOpen: false } : w)),
     );
   };
 
@@ -193,17 +273,18 @@ export default function Desktop() {
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (draggingIconId.current) {
-        setIcons((prev) =>
-          prev.map((icon) =>
+        setIcons((prev) => {
+          const nextIcons = prev.map((icon) =>
             icon.id === draggingIconId.current
               ? {
                   ...icon,
                   x: e.clientX - offset.current.x,
                   y: e.clientY - offset.current.y,
                 }
-              : icon
-          )
-        );
+              : icon,
+          );
+          return nextIcons;
+        });
       } else if (draggingWindowId.current) {
         setWindows((prev) =>
           prev.map((window) =>
@@ -213,13 +294,19 @@ export default function Desktop() {
                   x: e.clientX - offset.current.x,
                   y: e.clientY - offset.current.y,
                 }
-              : window
-          )
+              : window,
+          ),
         );
       }
     };
 
     const handleMouseUp = () => {
+      if (draggingIconId.current) {
+        setIcons((prev) => {
+          saveIconPositions(prev);
+          return prev;
+        });
+      }
       draggingIconId.current = null;
       draggingWindowId.current = null;
     };
@@ -362,14 +449,14 @@ export default function Desktop() {
                   }}
                   className="flex flex-col items-center gap-1.5 p-2 rounded-md hover:bg-red-500/10 text-red-500/60 hover:text-red-400 transition-all border border-red-500/10"
                 >
-                  <Power className="w-4 h-4" />     
+                  <Power className="w-4 h-4" />
                   <span className="text-[9px] font-mono uppercase tracking-tighter">
-                    Shutdown    
+                    Shutdown
                   </span>
                 </button>
               </div>
               <div className="h-px bg-emerald-500/10 my-2" />
-              <StartMenuItem  
+              <StartMenuItem
                 icon={<LogOut className="w-4 h-4 text-zinc-400" />}
                 label="Log Out"
                 onClick={() => {
@@ -402,26 +489,30 @@ export default function Desktop() {
 
         {/* Taskbar Icons */}
         <div className="flex-1 flex items-center gap-2 px-4 overflow-x-auto no-scrollbar">
-          {windows.filter(w => w.isOpen).map((window) => (
-            <button
-              key={window.id}
-              onClick={() => {
-                if (window.isMinimized) {
-                  handleWindowOpen(window.id);
-                } else {
-                  bringToFront(window.id);
-                }
-              }}
-              className={`h-8 px-3 rounded border font-mono text-[10px] flex items-center gap-2 transition-all ${
-                !window.isMinimized 
-                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" 
-                  : "bg-zinc-900/50 border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-400"
-              }`}
-            >
-              <div className={`w-1.5 h-1.5 rounded-full ${!window.isMinimized ? "bg-emerald-500 animate-pulse" : "bg-zinc-700"}`} />
-              {window.title}
-            </button>
-          ))}
+          {windows
+            .filter((w) => w.isOpen)
+            .map((window) => (
+              <button
+                key={window.id}
+                onClick={() => {
+                  if (window.isMinimized) {
+                    handleWindowOpen(window.id);
+                  } else {
+                    bringToFront(window.id);
+                  }
+                }}
+                className={`h-8 px-3 rounded border font-mono text-[10px] flex items-center gap-2 transition-all ${
+                  !window.isMinimized
+                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                    : "bg-zinc-900/50 border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-400"
+                }`}
+              >
+                <div
+                  className={`w-1.5 h-1.5 rounded-full ${!window.isMinimized ? "bg-emerald-500 animate-pulse" : "bg-zinc-700"}`}
+                />
+                {window.title}
+              </button>
+            ))}
         </div>
 
         {/* System Controls */}
@@ -502,8 +593,8 @@ function Window({
       style={{
         left: isMaximized ? 0 : x,
         top: isMaximized ? 0 : y,
-        width: isMaximized ? "calc(100% - 0px)" : "auto",
-        height: isMaximized ? "calc(100% - 0px)" : "auto",
+        width: isMaximized ? "calc(100% - 0px)" : "600px",
+        height: isMaximized ? "calc(100% - 0px)" : "400px",
         zIndex: isMaximized ? 100 : zIndex,
         transform: isMaximized ? "none" : undefined,
       }}
@@ -551,7 +642,7 @@ function Window({
       </div>
 
       {/* Window Content */}
-      <div className="flex-1 overflow-auto p-4 custom-scrollbar">
+      <div className="flex-1 overflow-hidden custom-scrollbar">
         {children}
       </div>
 
