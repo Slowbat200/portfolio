@@ -20,6 +20,7 @@ import IdentityApp from "./apps/identity";
 import ProjectsApp from "./apps/projects";
 import TerminalApp from "./apps/terminal";
 import SettingsApp from "./apps/settings";
+import TrashApp from "./apps/trash";
 
 interface IconPosition {
   id: string;
@@ -42,8 +43,9 @@ interface WindowData {
 }
 
 export default function Desktop() {
-  const { setState, fileSystem } = useSystem();
+  const { setState, fileSystem, setFileSystem } = useSystem();
   const [isStartMenuOpen, setIsStartMenuOpen] = useState(false);
+  const [isOverTrash, setIsOverTrash] = useState(false);
   const [windows, setWindows] = useState<WindowData[]>([
     {
       id: "identity",
@@ -88,6 +90,17 @@ export default function Desktop() {
       y: 250,
       zIndex: 10,
       content: <SettingsApp />,
+    },
+    {
+      id: "trash",
+      title: "TRASH_BIN",
+      isOpen: false,
+      isMaximized: false,
+      isMinimized: false,
+      x: 300,
+      y: 300,
+      zIndex: 10,
+      content: <TrashApp />,
     },
   ]);
 
@@ -283,6 +296,18 @@ export default function Desktop() {
                 }
               : icon,
           );
+          
+          // Collision detection with trash bin
+          const trashIcon = nextIcons.find(i => i.id === "trash");
+          const draggedIcon = nextIcons.find(i => i.id === draggingIconId.current);
+          
+          if (trashIcon && draggedIcon && draggedIcon.id !== "trash") {
+            const dx = draggedIcon.x - trashIcon.x;
+            const dy = draggedIcon.y - trashIcon.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            setIsOverTrash(distance < 60);
+          }
+
           return nextIcons;
         });
       } else if (draggingWindowId.current) {
@@ -302,8 +327,36 @@ export default function Desktop() {
 
     const handleMouseUp = () => {
       if (draggingIconId.current) {
+        const currentIconId = draggingIconId.current;
+        
         setIcons((prev) => {
+          const draggedIcon = prev.find(i => i.id === currentIconId);
+          const trashIcon = prev.find(i => i.id === "trash");
+          
+          if (trashIcon && draggedIcon && draggedIcon.id !== "trash") {
+            const dx = draggedIcon.x - trashIcon.x;
+            const dy = draggedIcon.y - trashIcon.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < 60 && draggedIcon.id.startsWith("fs-")) {
+              // Move to trash
+              const fileName = draggedIcon.id.replace("fs-", "");
+              const newFs = JSON.parse(JSON.stringify(fileSystem));
+              const item = newFs.Desktop[fileName];
+              
+              if (item) {
+                if (!newFs.Trash) newFs.Trash = {};
+                newFs.Trash[fileName] = item;
+                delete newFs.Desktop[fileName];
+                setFileSystem(newFs);
+              }
+              setIsOverTrash(false);
+              return prev.filter(i => i.id !== currentIconId);
+            }
+          }
+          
           saveIconPositions(prev);
+          setIsOverTrash(false);
           return prev;
         });
       }
@@ -317,7 +370,7 @@ export default function Desktop() {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, []);
+  }, [fileSystem]);
 
   return (
     <div className="fixed inset-0 bg-zinc-950 flex flex-col overflow-hidden font-sans selection:bg-emerald-500/30">
@@ -348,6 +401,7 @@ export default function Desktop() {
             label={icon.label}
             x={icon.x}
             y={icon.y}
+            isHighlighted={icon.id === "trash" && isOverTrash}
             onMouseDown={(e) => handleMouseDown(e, icon.id)}
             onDoubleClick={() => handleWindowOpen(icon.id)}
           />
@@ -691,6 +745,7 @@ function DesktopIcon({
   label,
   x,
   y,
+  isHighlighted,
   onMouseDown,
   onDoubleClick,
 }: {
@@ -698,20 +753,21 @@ function DesktopIcon({
   label: string;
   x: number;
   y: number;
+  isHighlighted?: boolean;
   onMouseDown: (e: React.MouseEvent) => void;
   onDoubleClick: () => void;
 }) {
   return (
     <button
-      className="absolute flex flex-col items-center gap-2 group w-24 transition-transform hover:scale-105 active:scale-95 active:cursor-grabbing select-none"
+      className={`absolute flex flex-col items-center gap-2 group w-24 transition-transform hover:scale-105 active:scale-95 active:cursor-grabbing select-none ${isHighlighted ? "scale-110" : ""}`}
       style={{ left: x, top: y }}
       onMouseDown={onMouseDown}
       onDoubleClick={onDoubleClick}
     >
-      <div className="p-4 rounded-xl bg-zinc-900/50 border border-zinc-800 group-hover:bg-emerald-500/10 group-hover:border-emerald-500/30 transition-all duration-300 shadow-2xl group-hover:shadow-emerald-500/10">
+      <div className={`p-4 rounded-xl border transition-all duration-300 shadow-2xl ${isHighlighted ? "bg-red-500/20 border-red-500 shadow-red-500/40 animate-pulse" : "bg-zinc-900/50 border-zinc-800 group-hover:bg-emerald-500/10 group-hover:border-emerald-500/30 group-hover:shadow-emerald-500/10"}`}>
         {icon}
       </div>
-      <span className="text-[10px] text-zinc-400 font-mono tracking-widest uppercase group-hover:text-emerald-400 group-hover:drop-shadow-[0_0_8px_rgba(16,185,129,0.5)] transition-all">
+      <span className={`text-[10px] font-mono tracking-widest uppercase transition-all ${isHighlighted ? "text-red-400 drop-shadow-[0_0_8px_rgba(239,68,68,0.5)]" : "text-zinc-400 group-hover:text-emerald-400 group-hover:drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]"}`}>
         {label}
       </span>
     </button>

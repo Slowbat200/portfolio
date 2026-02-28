@@ -22,6 +22,7 @@ export const initialFileSystem: FileSystem = {
   "Desktop": {
     "welcome.txt": "Welcome to my interactive desktop environment!",
   },
+  "Trash": {},
   "readme.md": "# Welcome to my interactive terminal portfolio!\n\nType 'help' to see available commands.",
 };
 

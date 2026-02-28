@@ -27,12 +27,21 @@ export default function TerminalApp() {
 
   // Focus input on click
   const handleContainerClick = () => {
-    inputRef.current?.focus();
+    inputRef.current?.focus({ preventScroll: true });
   };
+
+  // Initial focus
+  useEffect(() => {
+    inputRef.current?.focus({ preventScroll: true });
+  }, []);
 
   // Scroll to bottom when history changes
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (bottomRef.current) {
+      // Use scrollIntoView but with options to minimize impact
+      // block: "nearest" is often better than "smooth" for preventing global shifts
+      bottomRef.current.scrollIntoView({ behavior: "auto", block: "nearest" });
+    }
   }, [history]);
 
   const resolvePath = (path: string[]): string | FileSystem | undefined => {
@@ -90,7 +99,74 @@ export default function TerminalApp() {
   mkdir [dir]- Create a directory
   touch [file]- Create a file
   rm [file] - Remove a file or directory (use -r for dir)
-  rmdir [dir]- Remove an empty directory`;
+  rmdir [dir]- Remove an empty directory
+  mv [src] [dst]- Move a file or directory
+  restore [file]- Restore a file from trash`;
+        break;
+
+      case "mv":
+        if (args.length < 2) {
+          output = "mv: missing destination file operand after '" + (args[0] || "") + "'";
+        } else {
+          const src = args[0];
+          const dst = args[1];
+          const currentDir = getDirectory(cwd);
+          
+          if (currentDir && src in currentDir) {
+            const newFileSystem = JSON.parse(JSON.stringify(fileSystem));
+            
+            // Get source ptr
+            let srcPtr = newFileSystem;
+            for (const segment of cwd) {
+              srcPtr = srcPtr[segment];
+            }
+            const item = srcPtr[src];
+            
+            // Handle destination
+            if (dst === "Trash" || dst === "/Trash" || dst === "~/Trash") {
+               if (!newFileSystem.Trash) newFileSystem.Trash = {};
+               newFileSystem.Trash[src] = item;
+               delete srcPtr[src];
+               setFileSystem(newFileSystem);
+               output = "";
+            } else {
+              // Simple move in same directory or simple path support
+              // For now, let's keep it simple: move to another name in current dir
+              srcPtr[dst] = item;
+              delete srcPtr[src];
+              setFileSystem(newFileSystem);
+              output = "";
+            }
+          } else {
+            output = `mv: cannot stat '${src}': No such file or directory`;
+          }
+        }
+        break;
+
+      case "restore":
+        if (args.length === 0) {
+          output = "restore: missing operand";
+        } else {
+          const target = args[0];
+          const trash = fileSystem["Trash"] as any;
+          if (trash && target in trash) {
+            const newFileSystem = JSON.parse(JSON.stringify(fileSystem));
+            const item = newFileSystem.Trash[target];
+            
+            // Restore to current directory
+            let ptr = newFileSystem;
+            for (const segment of cwd) {
+              ptr = ptr[segment];
+            }
+            ptr[target] = item;
+            delete newFileSystem.Trash[target];
+            
+            setFileSystem(newFileSystem);
+            output = `Restored '${target}' to ${formatCwd(cwd)}`;
+          } else {
+            output = `restore: '${target}' not found in trash`;
+          }
+        }
         break;
 
       case "rm":
@@ -341,7 +417,7 @@ export default function TerminalApp() {
       <ScrollArea className="flex-1 w-full h-full">
         <div className="space-y-1 p-2">
           {history.map((item, index) => (
-            <div key={index} className="break-words">
+            <div key={index} className="wrap-break-words">
               {item.type === "input" ? (
                 <div className="flex gap-2 text-emerald-400 font-bold">
                   <span>root@system:{item.cwd}$</span>
@@ -364,7 +440,6 @@ export default function TerminalApp() {
               onChange={(e) => setCurrentInput(e.target.value)}
               onKeyDown={handleKeyDown}
               className="bg-transparent border-none outline-none flex-1 text-zinc-100 focus:ring-0 p-0"
-              autoFocus
               autoComplete="off"
               spellCheck="false"
             />
