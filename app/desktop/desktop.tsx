@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useSystem } from "../system/system-context";
 import { Button } from "@/components/ui/button";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   LogOut,
   Terminal,
@@ -44,6 +45,7 @@ interface WindowData {
 
 export default function Desktop() {
   const { setState, fileSystem, setFileSystem } = useSystem();
+  const isMobile = useIsMobile();
   const [isStartMenuOpen, setIsStartMenuOpen] = useState(false);
   const [isOverTrash, setIsOverTrash] = useState(false);
   const [windows, setWindows] = useState<WindowData[]>([
@@ -51,10 +53,10 @@ export default function Desktop() {
       id: "identity",
       title: "IDENTITY_PROFILE",
       isOpen: false,
-      isMaximized: false,
+      isMaximized: isMobile,
       isMinimized: false,
-      x: 100,
-      y: 100,
+      x: isMobile ? 0 : 100,
+      y: isMobile ? 0 : 100,
       zIndex: 10,
       content: <IdentityApp />,
     },
@@ -62,10 +64,10 @@ export default function Desktop() {
       id: "encrypted",
       title: "PROJECT_ARCHIVES",
       isOpen: false,
-      isMaximized: false,
+      isMaximized: isMobile,
       isMinimized: false,
-      x: 150,
-      y: 150,
+      x: isMobile ? 0 : 150,
+      y: isMobile ? 0 : 150,
       zIndex: 10,
       content: <ProjectsApp />,
     },
@@ -73,10 +75,10 @@ export default function Desktop() {
       id: "terminal",
       title: "ROOT_TERMINAL",
       isOpen: false,
-      isMaximized: false,
+      isMaximized: isMobile,
       isMinimized: false,
-      x: 200,
-      y: 200,
+      x: isMobile ? 0 : 200,
+      y: isMobile ? 0 : 200,
       zIndex: 10,
       content: <TerminalApp />,
     },
@@ -84,10 +86,10 @@ export default function Desktop() {
       id: "settings",
       title: "CORE_SETTINGS",
       isOpen: false,
-      isMaximized: false,
+      isMaximized: isMobile,
       isMinimized: false,
-      x: 250,
-      y: 250,
+      x: isMobile ? 0 : 250,
+      y: isMobile ? 0 : 250,
       zIndex: 10,
       content: <SettingsApp />,
     },
@@ -95,14 +97,16 @@ export default function Desktop() {
       id: "trash",
       title: "TRASH_BIN",
       isOpen: false,
-      isMaximized: false,
+      isMaximized: isMobile,
       isMinimized: false,
-      x: 300,
-      y: 300,
+      x: isMobile ? 0 : 300,
+      y: isMobile ? 0 : 300,
       zIndex: 10,
       content: <TrashApp />,
     },
   ]);
+
+  const [loading, setLoading] = useState(true);
 
   const [icons, setIcons] = useState<IconPosition[]>([
     {
@@ -115,35 +119,51 @@ export default function Desktop() {
     {
       id: "encrypted",
       x: 24,
-      y: 144,
-      label: "Encrypted projects",
+      y: 136,
+      label: "Projects",
       icon: <Folder className="w-8 h-8 text-blue-400" />,
     },
     {
       id: "terminal",
       x: 24,
-      y: 264,
-      label: "Root Terminal",
+      y: 248,
+      label: "Terminal",
       icon: <Terminal className="w-8 h-8 text-emerald-500" />,
     },
     {
       id: "settings",
       x: 24,
-      y: 384,
-      label: "Core Settings",
-      icon: <Settings className="w-8 h-8 text-zinc-400" />,
+      y: 360,
+      label: "Settings",
+      icon: <Settings className="w-8 h-8 text-zinc-500 dark:text-zinc-400" />,
     },
     {
       id: "trash",
       x: 24,
-      y: 504,
+      y: 472,
       label: "Trash",
-      icon: <Trash2 className="w-8 h-8 text-zinc-500" />,
+      icon: <Trash2 className="w-8 h-8 text-zinc-500 dark:text-zinc-400" />,
     },
   ]);
 
-  // Handle icon position persistence and dynamic icons
+ useEffect(() => {
+    setTimeout(() => setLoading(false), 2000);
+  }, []);
+
+  // Handle icon position persistence and responsive layout
   useEffect(() => {
+    if (isMobile) {
+      // Re-arrange icons into two columns for mobile
+      setIcons((prev) =>
+        prev.map((icon, index) => ({
+          ...icon,
+          x: (index % 3) * 100 + 24,
+          y: Math.floor(index / 3) * 100 + 24,
+        })),
+      );
+      return;
+    }
+
     const savedPositions = localStorage.getItem("desktop_icon_positions");
     if (savedPositions) {
       try {
@@ -159,7 +179,7 @@ export default function Desktop() {
         console.error("Failed to load icon positions", e);
       }
     }
-  }, []);
+  }, [isMobile]);
 
   // Sync dynamic icons from FileSystem
   useEffect(() => {
@@ -167,7 +187,13 @@ export default function Desktop() {
     const desktopFiles = Object.keys(desktopFolder);
 
     setIcons((prev) => {
-      const systemIconIds = ["identity", "encrypted", "terminal", "settings", "trash"];
+      const systemIconIds = [
+        "identity",
+        "encrypted",
+        "terminal",
+        "settings",
+        "trash",
+      ];
       const currentDynamicIcons = prev.filter(
         (icon) => !systemIconIds.includes(icon.id),
       );
@@ -186,11 +212,15 @@ export default function Desktop() {
       desktopFiles.forEach((fileName, index) => {
         if (!currentDynamicIds.includes(fileName)) {
           const isDir = typeof desktopFolder[fileName] === "object";
+          const iconCount = nextIcons.length;
+
           nextIcons.push({
             id: `fs-${fileName}`,
             label: fileName,
-            x: 144, // Default to second column
-            y: 24 + (nextIcons.length - systemIconIds.length) * 120,
+            x: isMobile ? (iconCount % 3) * 100 + 24 : 144,
+            y: isMobile
+              ? Math.floor(iconCount / 3) * 100 + 24
+              : 24 + (nextIcons.length - systemIconIds.length) * 120,
             icon: isDir ? (
               <Folder className="w-8 h-8 text-blue-400" />
             ) : (
@@ -202,7 +232,7 @@ export default function Desktop() {
 
       return nextIcons;
     });
-  }, [fileSystem]);
+  }, [fileSystem, isMobile]);
 
   const saveIconPositions = (updatedIcons: IconPosition[]) => {
     const positions = updatedIcons.reduce((acc, icon) => {
@@ -286,9 +316,10 @@ export default function Desktop() {
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (draggingIconId.current) {
+        const currentId = draggingIconId.current;
         setIcons((prev) => {
-          const nextIcons = prev.map((icon) =>
-            icon.id === draggingIconId.current
+          const updatedIcons = prev.map((icon) =>
+            icon.id === currentId
               ? {
                   ...icon,
                   x: e.clientX - offset.current.x,
@@ -296,19 +327,23 @@ export default function Desktop() {
                 }
               : icon,
           );
-          
-          // Collision detection with trash bin
-          const trashIcon = nextIcons.find(i => i.id === "trash");
-          const draggedIcon = nextIcons.find(i => i.id === draggingIconId.current);
-          
+
+          // Calculate collision for trash bin after updating positions
+          const trashIcon = updatedIcons.find((i) => i.id === "trash");
+          const draggedIcon = updatedIcons.find((i) => i.id === currentId);
+
           if (trashIcon && draggedIcon && draggedIcon.id !== "trash") {
             const dx = draggedIcon.x - trashIcon.x;
             const dy = draggedIcon.y - trashIcon.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
-            setIsOverTrash(distance < 60);
+            // We need to update isOverTrash outside this setIcons call
+            // But since handleMouseMove is an event handler, we can just call it here
+            // Wait, React might complain if we call multiple state setters here
+            // but it's much better than inside the updater.
+            setTimeout(() => setIsOverTrash(distance < 60), 0);
           }
 
-          return nextIcons;
+          return updatedIcons;
         });
       } else if (draggingWindowId.current) {
         setWindows((prev) =>
@@ -328,37 +363,36 @@ export default function Desktop() {
     const handleMouseUp = () => {
       if (draggingIconId.current) {
         const currentIconId = draggingIconId.current;
-        
-        setIcons((prev) => {
-          const draggedIcon = prev.find(i => i.id === currentIconId);
-          const trashIcon = prev.find(i => i.id === "trash");
-          
-          if (trashIcon && draggedIcon && draggedIcon.id !== "trash") {
-            const dx = draggedIcon.x - trashIcon.x;
-            const dy = draggedIcon.y - trashIcon.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            
-            if (distance < 60 && draggedIcon.id.startsWith("fs-")) {
-              // Move to trash
-              const fileName = draggedIcon.id.replace("fs-", "");
-              const newFs = JSON.parse(JSON.stringify(fileSystem));
-              const item = newFs.Desktop[fileName];
-              
-              if (item) {
-                if (!newFs.Trash) newFs.Trash = {};
-                newFs.Trash[fileName] = item;
-                delete newFs.Desktop[fileName];
-                setFileSystem(newFs);
-              }
-              setIsOverTrash(false);
-              return prev.filter(i => i.id !== currentIconId);
+        const draggedIcon = icons.find((i) => i.id === currentIconId);
+        const trashIcon = icons.find((i) => i.id === "trash");
+
+        if (trashIcon && draggedIcon && draggedIcon.id !== "trash") {
+          const dx = draggedIcon.x - trashIcon.x;
+          const dy = draggedIcon.y - trashIcon.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          if (distance < 60 && draggedIcon.id.startsWith("fs-")) {
+            // Move to trash
+            const fileName = draggedIcon.id.replace("fs-", "");
+            const newFs = JSON.parse(JSON.stringify(fileSystem));
+            const item = newFs.Desktop[fileName];
+
+            if (item) {
+              if (!newFs.Trash) newFs.Trash = {};
+              newFs.Trash[fileName] = item;
+              delete newFs.Desktop[fileName];
+              setFileSystem(newFs);
             }
+            setIsOverTrash(false);
+            setIcons((prev) => prev.filter((i) => i.id !== currentIconId));
+            draggingIconId.current = null;
+            draggingWindowId.current = null;
+            return;
           }
-          
-          saveIconPositions(prev);
-          setIsOverTrash(false);
-          return prev;
-        });
+        }
+
+        saveIconPositions(icons);
+        setIsOverTrash(false);
       }
       draggingIconId.current = null;
       draggingWindowId.current = null;
@@ -370,10 +404,26 @@ export default function Desktop() {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [fileSystem]);
+  }, [fileSystem, icons, isMobile]);
+
+  const [time, setTime] = useState<string | null>(null);
+
+  useEffect(() => {
+    const updateTime = () => {
+      setTime(
+        new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      );
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
-    <div className="fixed inset-0 bg-zinc-950 flex flex-col overflow-hidden font-sans selection:bg-emerald-500/30">
+    <div className="fixed inset-0 bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex flex-col overflow-hidden font-sans selection:bg-emerald-500/30 transition-colors duration-500">
       {/* Cybersecurity Background Overlay */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {/* Digital Grid */}
@@ -408,35 +458,40 @@ export default function Desktop() {
         ))}
 
         {/* Windows */}
-        {windows.map((window) => (
-          <Window
-            key={window.id}
-            title={window.title}
-            isOpen={window.isOpen}
-            isMinimized={window.isMinimized}
-            isMaximized={window.isMaximized}
-            x={window.x}
-            y={window.y}
-            zIndex={window.zIndex}
-            onClose={() => handleWindowClose(window.id)}
-            onMinimize={() => handleWindowMinimize(window.id)}
-            onMaximize={() => handleWindowMaximize(window.id)}
-            onMouseDown={(e) => handleWindowMouseDown(e, window.id)}
-          >
-            {window.content}
-          </Window>
-        ))}
+        {windows.map((window) => {
+          if (!window.isOpen) return null;
+          return (
+            <Window
+              key={window.id}
+              title={window.title}
+              isOpen={window.isOpen}
+              isMinimized={window.isMinimized}
+              isMaximized={window.isMaximized}
+              x={window.x}
+              y={window.y}
+              zIndex={window.zIndex}
+              onClose={() => handleWindowClose(window.id)}
+              onMinimize={() => handleWindowMinimize(window.id)}
+              onMaximize={() => handleWindowMaximize(window.id)}
+              onMouseDown={(e) => handleWindowMouseDown(e, window.id)}
+            >
+              {window.content}
+            </Window>
+          );
+        })}
 
         {/* Start Menu */}
         {isStartMenuOpen && (
-          <div className="absolute bottom-4 left-4 w-64 bg-zinc-900/90 border border-emerald-500/30 backdrop-blur-xl rounded-lg shadow-[0_0_30px_rgba(16,185,129,0.1)] overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200 z-50">
-            <div className="p-4 border-b border-emerald-500/20 bg-emerald-500/5">
+          <div
+            className={`absolute bottom-14 left-0 right-0 mx-auto md:left-4 md:right-auto md:mx-0 w-[95%] md:w-64 bg-white dark:bg-zinc-900/90 border border-zinc-200 dark:border-emerald-500/30 backdrop-blur-xl rounded-lg shadow-[0_0_30px_rgba(0,0,0,0.1)] dark:shadow-[0_0_30px_rgba(16,185,129,0.1)] overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200 z-50`}
+          >
+            <div className="p-4 border-b border-zinc-100 dark:border-emerald-500/20 bg-zinc-50 dark:bg-emerald-500/5">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full border border-emerald-500/50 flex items-center justify-center bg-zinc-950">
-                  <User className="w-6 h-6 text-emerald-500" />
+                <div className="w-10 h-10 rounded-full border border-zinc-200 dark:border-emerald-500/50 flex items-center justify-center bg-white dark:bg-zinc-950">
+                  <User className="w-6 h-6 text-zinc-600 dark:text-emerald-500" />
                 </div>
                 <div>
-                  <p className="text-xs font-mono text-emerald-500 font-bold">
+                  <p className="text-sm md:text-xs font-mono text-zinc-800 dark:text-emerald-500 font-bold">
                     JD_ADMIN
                   </p>
                   <p className="text-[10px] font-mono text-zinc-500">
@@ -449,7 +504,7 @@ export default function Desktop() {
             <div className="p-2 py-3 space-y-1">
               <StartMenuItem
                 icon={<Terminal className="w-4 h-4" />}
-                label="System Terminal"
+                label="Root Terminal"
                 onClick={() => {
                   handleWindowOpen("terminal");
                   setIsStartMenuOpen(false);
@@ -457,7 +512,7 @@ export default function Desktop() {
               />
               <StartMenuItem
                 icon={<Folder className="w-4 h-4" />}
-                label="File Explorer"
+                label="Encrypted Projects"
                 onClick={() => {
                   handleWindowOpen("encrypted");
                   setIsStartMenuOpen(false);
@@ -465,13 +520,13 @@ export default function Desktop() {
               />
               <StartMenuItem
                 icon={<Settings className="w-4 h-4" />}
-                label="Network Config"
+                label="Core Settings"
                 onClick={() => {
                   handleWindowOpen("settings");
                   setIsStartMenuOpen(false);
                 }}
               />
-              <div className="h-px bg-emerald-500/10 my-2" />
+              <div className="h-px bg-zinc-100 dark:bg-emerald-500/10 my-2" />
               <StartMenuItem
                 icon={<User className="w-4 h-4" />}
                 label="Identity Profile"
@@ -480,7 +535,7 @@ export default function Desktop() {
                   setIsStartMenuOpen(false);
                 }}
               />
-              <div className="h-px bg-emerald-500/10 my-2" />
+              <div className="h-px bg-zinc-100 dark:bg-emerald-500/10 my-2" />
               <div className="grid grid-cols-2 gap-2 px-2 pb-2">
                 <button
                   onClick={() => {
@@ -488,7 +543,7 @@ export default function Desktop() {
                     sessionStorage.removeItem("loggedIn");
                     setState("booting");
                   }}
-                  className="flex flex-col items-center gap-1.5 p-2 rounded-md hover:bg-emerald-500/10 text-emerald-500/60 hover:text-emerald-400 transition-all border border-emerald-500/10"
+                  className="flex flex-col items-center gap-1.5 p-2 rounded-md hover:bg-zinc-100 dark:hover:bg-emerald-500/10 text-zinc-600 dark:text-emerald-500/60 hover:text-zinc-900 dark:hover:text-emerald-400 transition-all border border-zinc-200 dark:border-emerald-500/10"
                 >
                   <RefreshCw className="w-4 h-4" />
                   <span className="text-[9px] font-mono uppercase tracking-tighter">
@@ -501,7 +556,7 @@ export default function Desktop() {
                     sessionStorage.removeItem("loggedIn");
                     setState("shutdown");
                   }}
-                  className="flex flex-col items-center gap-1.5 p-2 rounded-md hover:bg-red-500/10 text-red-500/60 hover:text-red-400 transition-all border border-red-500/10"
+                  className="flex flex-col items-center gap-1.5 p-2 rounded-md hover:bg-red-50 dark:hover:bg-red-500/10 text-red-500/60 hover:text-red-600 dark:hover:text-red-400 transition-all border border-red-100 dark:border-red-500/10"
                 >
                   <Power className="w-4 h-4" />
                   <span className="text-[9px] font-mono uppercase tracking-tighter">
@@ -509,7 +564,7 @@ export default function Desktop() {
                   </span>
                 </button>
               </div>
-              <div className="h-px bg-emerald-500/10 my-2" />
+              <div className="h-px bg-zinc-100 dark:bg-emerald-500/10 my-2" />
               <StartMenuItem
                 icon={<LogOut className="w-4 h-4 text-zinc-400" />}
                 label="Log Out"
@@ -517,11 +572,11 @@ export default function Desktop() {
                   sessionStorage.removeItem("loggedIn");
                   setState("login");
                 }}
-                className="text-zinc-400/70 hover:text-zinc-200 hover:bg-zinc-800"
+                className="text-zinc-400/70 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800"
               />
             </div>
 
-            <div className="p-2 bg-zinc-950/50 text-[9px] font-mono text-zinc-600 flex justify-between items-center px-4">
+            <div className="p-2 bg-zinc-50/50 dark:bg-zinc-950/50 text-[9px] font-mono text-zinc-500 dark:text-zinc-600 flex justify-between items-center px-4">
               <span>OS_VERSION: 1.0.4</span>
               <span className="flex items-center gap-1">
                 <div className="w-1 h-1 rounded-full bg-emerald-500" /> ONLINE
@@ -532,17 +587,18 @@ export default function Desktop() {
       </div>
 
       {/* Taskbar */}
-      <div className="relative h-12 bg-zinc-900/80 border-t border-zinc-800 backdrop-blur-md flex items-center px-1 gap-1">
+      <div className="relative h-12 bg-white/80 dark:bg-zinc-900/80 border-t border-zinc-200 dark:border-zinc-800 backdrop-blur-md flex items-center px-1 md:px-2 gap-1 shrink-0">
         <Button
           variant="ghost"
-          className="h-10 text-emerald-500 font-mono font-bold px-4 hover:bg-emerald-500/10 hover:text-emerald-400 transition-all border border-transparent hover:border-emerald-500/30"
+          className="h-10 text-zinc-800 dark:text-emerald-500 font-mono font-bold px-2 md:px-4 hover:bg-zinc-100 dark:hover:bg-emerald-500/10 hover:text-zinc-900 dark:hover:text-emerald-400 transition-all border border-transparent hover:border-zinc-200 dark:hover:border-emerald-500/30"
           onClick={handleStartMenu}
         >
-          <span className="mr-2">⚡</span> SYSTEM
+          <span className="md:mr-2">⚡</span>{" "}
+          <span className="hidden md:inline">SYSTEM</span>
         </Button>
 
         {/* Taskbar Icons */}
-        <div className="flex-1 flex items-center gap-2 px-4 overflow-x-auto no-scrollbar">
+        <div className="flex-1 flex items-center gap-1 md:gap-2 px-1 md:px-4 overflow-x-auto no-scrollbar">
           {windows
             .filter((w) => w.isOpen)
             .map((window) => (
@@ -555,36 +611,36 @@ export default function Desktop() {
                     bringToFront(window.id);
                   }
                 }}
-                className={`h-8 px-3 rounded border font-mono text-[10px] flex items-center gap-2 transition-all ${
+                className={`h-8 px-2 md:px-3 rounded border font-mono text-[9px] md:text-[10px] flex items-center gap-1 md:gap-2 transition-all shrink-0 max-w-[100px] md:max-w-none ${
                   !window.isMinimized
-                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                    : "bg-zinc-900/50 border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-400"
+                    ? "bg-zinc-100 dark:bg-emerald-500/10 border-zinc-300 dark:border-emerald-500/30 text-zinc-800 dark:text-emerald-400"
+                    : "bg-white dark:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:border-zinc-300 dark:hover:border-zinc-700 hover:text-zinc-800 dark:hover:text-zinc-400"
                 }`}
               >
                 <div
-                  className={`w-1.5 h-1.5 rounded-full ${!window.isMinimized ? "bg-emerald-500 animate-pulse" : "bg-zinc-700"}`}
+                  className={`w-1.5 h-1.5 rounded-full ${!window.isMinimized ? "bg-emerald-500 animate-pulse" : "bg-zinc-300 dark:bg-zinc-700"}`}
                 />
-                {window.title}
+                <span className="truncate">{window.title}</span>
               </button>
             ))}
         </div>
 
         {/* System Controls */}
-        <div className="flex items-center gap-4 px-4 border-l border-zinc-800 text-xs font-mono text-emerald-500/70">
-          <div className="flex items-center gap-2 border-r border-zinc-800 pr-4">
+        <div className="flex items-center gap-2 md:gap-4 px-1 md:px-4 border-l border-zinc-200 dark:border-zinc-800 text-xs font-mono text-zinc-800 dark:text-emerald-500/70">
+          <div className="hidden lg:flex items-center gap-2 border-r border-zinc-200 dark:border-zinc-800 pr-4">
             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>SECURE_LINK: ESTABLISHED</span>
+            <span className="hidden sm:inline">SECURE_LINK: ESTABLISHED</span>
           </div>
           <button
             onClick={() => {
               sessionStorage.removeItem("loggedIn");
               setState("login");
             }}
-            className="hover:text-amber-500 transition-colors flex items-center gap-2"
+            className="p-2 md:p-0 hover:text-amber-600 dark:hover:text-amber-500 transition-colors flex items-center gap-2"
             title="Log Out"
           >
-            <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">LOG_OUT</span>
+            <LogOut className="w-4 h-4 dark:text-emerald-500" />
+            <span className="hidden xl:inline">LOG_OUT</span>
           </button>
           <button
             onClick={() => {
@@ -592,17 +648,14 @@ export default function Desktop() {
               sessionStorage.removeItem("loggedIn");
               setState("shutdown");
             }}
-            className="hover:text-red-500 transition-colors flex items-center gap-2"
+            className="p-2 md:p-0 hover:text-red-600 dark:hover:text-red-500 transition-colors flex items-center gap-2"
             title="Shutdown System"
           >
             <Power className="w-4 h-4" />
-            <span className="hidden sm:inline">SHUTDOWN</span>
+            <span className="hidden xl:inline">SHUTDOWN</span>
           </button>
-          <span className="text-zinc-500 ml-2">
-            {new Date().toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
+          <span className="text-[10px] md:text-xs text-zinc-400 dark:text-zinc-500 ml-1 md:ml-2">
+            {time || "--:--"}
           </span>
         </div>
       </div>
@@ -638,79 +691,87 @@ function Window({
   onMouseDown: (e: React.MouseEvent) => void;
 }) {
   if (!isOpen || isMinimized) return null;
+  const isMobile = useIsMobile();
+  const maximized = isMaximized || isMobile;
 
   return (
     <div
-      className={`absolute transition-transform min-w-[320px] min-h-[200px] bg-zinc-900/90 border border-zinc-800 rounded-lg shadow-2xl flex flex-col backdrop-blur-xl animate-in zoom-in-95 fade-in duration-200 overflow-hidden ${
-        isMaximized ? "inset-2 z-100 rounded-none" : ""
+      className={`absolute transition-all bg-white/90 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-2xl flex flex-col backdrop-blur-xl animate-in zoom-in-95 fade-in duration-200 overflow-hidden ${
+        maximized
+          ? "inset-0 md:inset-2 z-100 rounded-none md:rounded-lg"
+          : "min-w-[320px] min-h-[200px]"
       }`}
       style={{
-        left: isMaximized ? 0 : x,
-        top: isMaximized ? 0 : y,
-        width: isMaximized ? "calc(100% - 0px)" : "600px",
-        height: isMaximized ? "calc(100% - 0px)" : "400px",
-        zIndex: isMaximized ? 100 : zIndex,
-        transform: isMaximized ? "none" : undefined,
+        left: maximized ? 0 : x,
+        top: maximized ? 0 : y,
+        width: maximized ? "100%" : "600px",
+        height: maximized ? "calc(100% - 48px)" : "400px",
+        zIndex: maximized ? 100 : zIndex,
+        transform: maximized ? "none" : undefined,
       }}
     >
       {/* Window Header */}
       <div
-        className="h-9 bg-zinc-950/50 border-b border-zinc-800 flex items-center justify-between px-3 cursor-move select-none"
-        onMouseDown={!isMaximized ? onMouseDown : undefined}
+        className="h-10 md:h-9 bg-zinc-50/50 dark:bg-zinc-950/50 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-3 cursor-move select-none"
+        onMouseDown={!maximized ? onMouseDown : undefined}
       >
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-emerald-500/50" />
-          <span className="text-[10px] font-mono text-zinc-400 font-bold tracking-widest uppercase">
+          <span className="text-[10px] md:text-[11px] font-mono text-zinc-600 dark:text-zinc-400 font-bold tracking-widest uppercase truncate max-w-[150px] md:max-w-none">
             {title}
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 md:gap-2">
           <button
             onClick={(e) => {
               e.stopPropagation();
               onMinimize();
             }}
-            className="p-1 hover:bg-zinc-800 rounded transition-colors group"
+            className="p-2 md:p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors group"
           >
-            <Minus className="w-3 h-3 text-zinc-600 group-hover:text-zinc-400" />
+            <Minus className="w-4 h-4 md:w-3 md:h-3 text-zinc-400 dark:text-zinc-600 group-hover:text-zinc-900 dark:group-hover:text-zinc-400" />
           </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onMaximize();
-            }}
-            className="p-1 hover:bg-zinc-800 rounded transition-colors group"
-          >
-            <Square className="w-3 h-3 text-zinc-600 group-hover:text-zinc-400" />
-          </button>
+          {!isMobile && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onMaximize();
+              }}
+              className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors group"
+            >
+              <Square className="w-3 h-3 text-zinc-400 dark:text-zinc-600 group-hover:text-zinc-900 dark:group-hover:text-zinc-400" />
+            </button>
+          )}
           <button
             onClick={(e) => {
               e.stopPropagation();
               onClose();
             }}
-            className="p-1 hover:bg-red-500/20 rounded transition-colors group"
+            className="p-2 md:p-1 hover:bg-red-500/10 dark:hover:bg-red-500/20 rounded transition-colors group"
           >
-            <X className="w-3 h-3 text-zinc-600 group-hover:text-red-500" />
+            <X className="w-4 h-4 md:w-3 md:h-3 text-zinc-400 dark:text-zinc-600 group-hover:text-red-600 dark:group-hover:text-red-500" />
           </button>
         </div>
       </div>
 
       {/* Window Content */}
-      <div className="flex-1 overflow-hidden custom-scrollbar">
+      <div className="flex-1 overflow-hidden custom-scrollbar bg-white dark:bg-transparent">
         {children}
       </div>
 
       {/* Status Bar */}
-      <div className="h-6 bg-zinc-950/30 border-t border-zinc-800/50 flex items-center px-3 justify-between">
+      <div className="h-7 md:h-6 bg-zinc-50/30 dark:bg-zinc-950/30 border-t border-zinc-200 dark:border-zinc-800/50 flex items-center px-3 justify-between shrink-0">
         <div className="flex items-center gap-2">
-          <span className="text-[8px] font-mono text-zinc-600 uppercase">
+          <span className="text-[8px] md:text-[9px] font-mono text-zinc-400 dark:text-zinc-600 uppercase">
             Status:{" "}
           </span>
-          <span className="text-[8px] font-mono text-emerald-500/70 uppercase animate-pulse">
+          <span className="text-[8px] md:text-[9px] font-mono text-emerald-600 dark:text-emerald-500/70 uppercase animate-pulse">
             Synced
           </span>
         </div>
-        <span className="text-[8px] font-mono text-zinc-600">SECURE_ENV</span>
+        <span className="text-[8px] md:text-[9px] font-mono text-zinc-400 dark:text-zinc-600">
+          SECURE_ENV
+        </span>
       </div>
     </div>
   );
@@ -730,9 +791,9 @@ function StartMenuItem({
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-mono text-emerald-500/80 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-md transition-all group ${className}`}
+      className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-mono text-zinc-600 dark:text-emerald-500/80 hover:text-zinc-900 dark:hover:text-emerald-400 hover:bg-zinc-100 dark:hover:bg-emerald-500/10 rounded-md transition-all group ${className}`}
     >
-      <span className="group-hover:drop-shadow-[0_0_8px_rgba(16,185,129,0.5)] transition-all">
+      <span className="group-hover:drop-shadow-[0_0_8px_rgba(0,0,0,0.1)] dark:group-hover:drop-shadow-[0_0_8px_rgba(16,185,129,0.5)] transition-all">
         {icon}
       </span>
       <span>{label}</span>
@@ -757,17 +818,25 @@ function DesktopIcon({
   onMouseDown: (e: React.MouseEvent) => void;
   onDoubleClick: () => void;
 }) {
+  const isMobile = useIsMobile();
+
   return (
     <button
-      className={`absolute flex flex-col items-center gap-2 group w-24 transition-transform hover:scale-105 active:scale-95 active:cursor-grabbing select-none ${isHighlighted ? "scale-110" : ""}`}
+      className={`absolute flex flex-col items-center gap-1 md:gap-2 group w-20 md:w-24 transition-transform hover:scale-105 active:scale-95 active:cursor-grabbing select-none ${isHighlighted ? "scale-110" : ""}`}
       style={{ left: x, top: y }}
       onMouseDown={onMouseDown}
       onDoubleClick={onDoubleClick}
     >
-      <div className={`p-4 rounded-xl border transition-all duration-300 shadow-2xl ${isHighlighted ? "bg-red-500/20 border-red-500 shadow-red-500/40 animate-pulse" : "bg-zinc-900/50 border-zinc-800 group-hover:bg-emerald-500/10 group-hover:border-emerald-500/30 group-hover:shadow-emerald-500/10"}`}>
-        {icon}
+      <div
+        className={`p-3 md:p-4 rounded-xl border transition-all duration-300 shadow-2xl ${isHighlighted ? "bg-red-500/20 border-red-500 shadow-red-500/40 animate-pulse" : "bg-white/80 dark:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800 group-hover:bg-emerald-500/10 dark:group-hover:bg-emerald-500/10 group-hover:border-emerald-500/30 group-hover:shadow-emerald-500/10"}`}
+      >
+        <div className="w-6 h-6 md:w-8 md:h-8 flex items-center justify-center">
+          {icon}
+        </div>
       </div>
-      <span className={`text-[10px] font-mono tracking-widest uppercase transition-all ${isHighlighted ? "text-red-400 drop-shadow-[0_0_8px_rgba(239,68,68,0.5)]" : "text-zinc-400 group-hover:text-emerald-400 group-hover:drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]"}`}>
+      <span
+        className={`text-[9px] md:text-[10px] font-mono tracking-widest uppercase transition-all truncate w-full px-1 ${isHighlighted ? "text-red-600 dark:text-red-400 drop-shadow-[0_0_8px_rgba(239,68,68,0.5)]" : "text-white dark:text-zinc-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 group-hover:drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]"}`}
+      >
         {label}
       </span>
     </button>

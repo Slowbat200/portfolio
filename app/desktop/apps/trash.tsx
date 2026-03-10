@@ -39,17 +39,17 @@ export default function TrashApp() {
   };
 
   return (
-    <div className="flex flex-col h-full font-mono text-xs text-zinc-400 p-4 relative">
+    <div className="flex flex-col h-full font-mono text-xs text-zinc-400 p-4 relative transition-transform">
       {/* Confirmation Dialogs */}
       {(itemToDelete || isConfirmingEmpty) && (
         <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-full max-w-[280px] bg-zinc-900 border border-red-500/30 rounded-lg shadow-[0_0_30px_rgba(239,68,68,0.1)] p-5 space-y-4">
-            <div className="flex items-center gap-3 text-red-500">
+            <div className="flex items-center gap-3 text-red-500 dark:text-red-400">
               <AlertTriangle className="w-5 h-5 animate-pulse" />
               <span className="font-bold tracking-widest uppercase text-[10px]">Security_Warning</span>
             </div>
             
-            <p className="text-[10px] leading-relaxed text-zinc-300">
+            <p className="text-[10px] leading-relaxed text-zinc-300 dark:text-zinc-200">
               {isConfirmingEmpty 
                 ? "Are you sure you want to permanently delete all items in the Trash? This action cannot be undone."
                 : `Are you sure you want to permanently delete '${itemToDelete}'? This action cannot be undone.`
@@ -59,7 +59,7 @@ export default function TrashApp() {
             <div className="flex gap-2 pt-2">
               <Button
                 variant="ghost"
-                className="flex-1 h-8 text-[9px] border border-zinc-800 hover:bg-zinc-800 text-zinc-400"
+                className="flex-1 h-8 text-[9px] border border-zinc-800 dark:border-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-400 dark:text-zinc-300"
                 onClick={() => {
                   setItemToDelete(null);
                   setIsConfirmingEmpty(false);
@@ -81,8 +81,8 @@ export default function TrashApp() {
 
       <div className="flex justify-between items-center mb-6 border-b border-zinc-800 pb-2">
         <div className="flex items-center gap-2">
-          <Trash2 className="w-4 h-4 text-zinc-500" />
-          <span className="uppercase tracking-widest text-zinc-500">Trash_Bin</span>
+          <Trash2 className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
+          <span className="uppercase tracking-widest text-zinc-500 dark:text-zinc-400">Trash_Bin</span>
         </div>
         {fileNames.length > 0 && (
           <Button 
@@ -98,8 +98,8 @@ export default function TrashApp() {
 
       {fileNames.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center gap-2 opacity-30">
-          <Trash2 className="w-12 h-12" />
-          <p className="uppercase tracking-tighter text-[10px]">Trash_is_empty</p>
+          <Trash2 className="w-12 h-12 text-zinc-500 dark:text-zinc-400" />
+          <p className="uppercase tracking-tighter text-[10px] text-zinc-500 dark:text-zinc-400">Trash_is_empty</p>
         </div>
       ) : (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4 overflow-y-auto custom-scrollbar p-1">
@@ -112,9 +112,9 @@ export default function TrashApp() {
               >
                 <div className="relative">
                   {isDir ? (
-                    <Folder className="w-10 h-10 text-blue-400/60 drop-shadow-lg" />
+                    <Folder className="w-10 h-10 text-blue-400/60 drop-shadow-lg dark:text-blue-400" />
                   ) : (
-                    <File className="w-10 h-10 text-zinc-500 drop-shadow-lg" />
+                    <File className="w-10 h-10 text-zinc-500 drop-shadow-lg dark:text-zinc-200" />
                   )}
                   
                   {/* Action Overlay */}
@@ -124,19 +124,19 @@ export default function TrashApp() {
                       className="p-1.5 bg-emerald-500/80 hover:bg-emerald-400 text-zinc-950 rounded-full transition-colors shadow-lg"
                       title="Restore"
                     >
-                      <RotateCcw className="w-3 h-3 font-bold" />
+                      <RotateCcw className="w-3 h-3 font-bold text-zinc-950" />
                     </button>
                     <button
                       onClick={() => setItemToDelete(name)}
                       className="p-1.5 bg-red-500/80 hover:bg-red-400 text-zinc-950 rounded-full transition-colors shadow-lg"
                       title="Delete Permanently"
                     >
-                      <X className="w-3 h-3 font-bold" />
+                      <X className="w-3 h-3 font-bold text-zinc-950" />
                     </button>
                   </div>
                 </div>
                 
-                <span className="text-[10px] text-zinc-400 text-center truncate w-full group-hover:text-zinc-200">
+                <span className="text-[10px] text-zinc-400 dark:text-zinc-200 text-center truncate w-full group-hover:text-zinc-200">
                   {name}
                 </span>
               </div>
@@ -145,7 +145,7 @@ export default function TrashApp() {
         </div>
       )}
 
-      <div className="mt-auto pt-4 border-t border-zinc-800/50 flex justify-between text-[10px] text-zinc-600">
+      <div className="mt-auto pt-4 border-t border-zinc-800/50 flex justify-between text-[10px] text-zinc-600 dark:text-zinc-400">
         <span>ITEMS: {fileNames.length}</span>
         <span>TRASH_ROOT: /system/trash</span>
       </div>

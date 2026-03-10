@@ -1,21 +1,28 @@
+import { ModeToggle } from "@/components/mode-toggle";
+import { Slider } from "@/components/ui/slider";
+
 export default function SettingsApp() {
   return (
-    <div className="space-y-4 font-mono text-xs text-zinc-400 p-4">
+    <div className="space-y-4 font-mono text-sm text-zinc-600 dark:text-zinc-400 p-4 transition-colors">
       <div className="space-y-3">
-        <div className="flex items-center justify-between p-2 border border-zinc-800 rounded">
-          <span>Dark_Mode</span>
-          <div className="w-8 h-4 bg-emerald-500/20 rounded-full relative">
-            <div className="absolute right-1 top-1 w-2 h-2 bg-emerald-500 rounded-full" />
-          </div>
+        <div className="flex items-center justify-between p-2 border border-zinc-200 dark:border-zinc-800 rounded bg-zinc-50 dark:bg-zinc-900/50">
+          <span className="text-zinc-800 dark:text-zinc-200">Dark_Mode</span>
+          <ModeToggle />
         </div>
-        <div className="flex items-center justify-between p-2 border border-zinc-800 rounded">
-          <span>Encryption_Level</span>
-          <span className="text-emerald-500">AES-256</span>
+        <div className="flex items-center justify-between p-2 border border-zinc-200 dark:border-zinc-800 rounded bg-zinc-50 dark:bg-zinc-900/50">
+          <span className="text-zinc-800 dark:text-zinc-200">
+            Encryption_Level
+          </span>
+          <span className="text-emerald-600 dark:text-emerald-500 font-bold">
+            AES-256
+          </span>
         </div>
-        <div className="flex items-center justify-between p-2 border border-zinc-800 rounded">
-          <span>System_Volume</span>
-          <div className="w-24 h-1 bg-zinc-800 rounded-full relative">
-            <div className="absolute left-0 top-0 w-3/4 h-full bg-blue-500 rounded-full" />
+        <div className="flex items-center justify-between p-2 border border-zinc-200 dark:border-zinc-800 rounded bg-zinc-50 dark:bg-zinc-900/50">
+          <span className="text-zinc-800 dark:text-zinc-200">
+            System_Volume
+          </span>
+          <div className="w-24 h-1 bg-zinc-200 dark:bg-zinc-800 rounded-full relative">
+            <Slider defaultValue={[33]} max={100} step={1} />
           </div>
         </div>
       </div>

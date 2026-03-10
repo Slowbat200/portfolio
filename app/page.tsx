@@ -1,10 +1,13 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useSystem } from './system/system-context'
-import BootScreen from './system/boot-screen'
-import LoginScreen from './system/login-screen'
-import Desktop from './desktop/desktop'
 import { Power } from 'lucide-react'
+
+// Use dynamic imports with ssr: false for OS components to prevent hydration errors
+const BootScreen = dynamic(() => import('./system/boot-screen'), { ssr: false })
+const LoginScreen = dynamic(() => import('./system/login-screen'), { ssr: false })
+const Desktop = dynamic(() => import('./desktop/desktop'), { ssr: false })
 
 export default function Home() {
   const { state, setState } = useSystem()

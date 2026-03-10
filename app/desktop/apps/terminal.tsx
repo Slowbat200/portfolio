@@ -411,35 +411,35 @@ export default function TerminalApp() {
 
   return (
     <div 
-      className="bg-black/90 p-2 h-full w-full font-mono text-sm text-emerald-500 overflow-hidden flex flex-col"
+      className="bg-white dark:bg-black/80 h-full w-full font-mono text-xs text-zinc-800 dark:text-emerald-500 transition-colors overflow-hidden flex flex-col"
       onClick={handleContainerClick}
     >
       <ScrollArea className="flex-1 w-full h-full">
-        <div className="space-y-1 p-2">
+        <div className="p-4 space-y-1">
           {history.map((item, index) => (
-            <div key={index} className="wrap-break-words">
+            <div key={index} className="whitespace-pre-wrap break-all">
               {item.type === "input" ? (
-                <div className="flex gap-2 text-emerald-400 font-bold">
-                  <span>root@system:{item.cwd}$</span>
-                  <span className="text-zinc-100">{item.content}</span>
+                <div className="flex gap-2 text-zinc-500 dark:text-emerald-400">
+                  <span className="font-bold">root@system:{item.cwd || "~"}$</span>
+                  <span className="text-zinc-900 dark:text-zinc-100">{item.content}</span>
                 </div>
               ) : (
-                <div className="text-zinc-300 whitespace-pre-wrap pl-4 mb-2">
-                  {item.content}
-                </div>
+                <div className="text-zinc-700 dark:text-emerald-500/90 whitespace-pre-wrap pl-4 mb-2">{item.content}</div>
               )}
             </div>
           ))}
           
-          <div className="flex gap-2 text-emerald-400 font-bold items-center">
-            <span>root@system:{formatCwd(cwd)}$</span>
+          <div className="flex gap-2 items-center">
+            <span className="text-zinc-500 dark:text-emerald-400 font-bold shrink-0">
+              root@system:{formatCwd(cwd)}$
+            </span>
             <input
               ref={inputRef}
               type="text"
               value={currentInput}
               onChange={(e) => setCurrentInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="bg-transparent border-none outline-none flex-1 text-zinc-100 focus:ring-0 p-0"
+              className="bg-transparent border-none outline-none flex-1 text-zinc-900 dark:text-zinc-100 focus:ring-0 p-0"
               autoComplete="off"
               spellCheck="false"
             />
