@@ -690,7 +690,7 @@ function Window({
   onMaximize: () => void;
   onMouseDown: (e: React.MouseEvent) => void;
 }) {
-  if (!isOpen || isMinimized) return null;
+  if (!isOpen) return null;
   const isMobile = useIsMobile();
   const maximized = isMaximized || isMobile;
 
@@ -700,7 +700,7 @@ function Window({
         maximized
           ? "inset-0 md:inset-2 z-100 rounded-none md:rounded-lg"
           : "min-w-[320px] min-h-[200px]"
-      }`}
+      } ${isMinimized ? "invisible pointer-events-none scale-95 opacity-0" : "visible scale-100 opacity-100"}`}
       style={{
         left: maximized ? 0 : x,
         top: maximized ? 0 : y,

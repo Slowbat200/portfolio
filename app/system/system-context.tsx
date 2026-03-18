@@ -19,9 +19,6 @@ export const initialFileSystem: FileSystem = {
     "backend.txt": "Node.js, Express, PostgreSQL, MongoDB, Supabase",
     "tools.txt": "Git, Docker, AWS, Vercel",
   },
-  "Desktop": {
-    "welcome.txt": "Welcome to my interactive desktop environment!",
-  },
   "Trash": {},
   "readme.md": "# Welcome to my interactive terminal portfolio!\n\nType 'help' to see available commands.",
 };
