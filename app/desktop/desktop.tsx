@@ -696,7 +696,7 @@ function Window({
 
   return (
     <div
-      className={`absolute transition-all bg-white/90 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-2xl flex flex-col backdrop-blur-xl animate-in zoom-in-95 fade-in duration-200 overflow-hidden ${
+      className={`absolute transition-transform bg-white/90 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-2xl flex flex-col backdrop-blur-xl animate-in zoom-in-95 fade-in duration-200 overflow-hidden ${
         maximized
           ? "inset-0 md:inset-2 z-100 rounded-none md:rounded-lg"
           : "min-w-[320px] min-h-[200px]"
