@@ -245,6 +245,7 @@ export default function Desktop() {
   const draggingIconId = useRef<string | null>(null);
   const draggingWindowId = useRef<string | null>(null);
   const offset = useRef({ x: 0, y: 0 });
+  const touchTimer = useRef<NodeJS.Timeout | null>(null);
 
   const handleMouseDown = (e: React.MouseEvent, id: string) => {
     const icon = icons.find((i) => i.id === id);
@@ -254,6 +255,25 @@ export default function Desktop() {
         x: e.clientX - icon.x,
         y: e.clientY - icon.y,
       };
+    }
+  };
+
+  // function for grabbing apps in mobile devices
+  const handleTouchStart = (e: React.TouchEvent, id: string) => {
+    const icon = icons.find((i) => i.id === id);
+    if (icon) {
+      const touch = e.touches[0];
+      const startX = touch.clientX;
+      const startY = touch.clientY;
+
+      touchTimer.current = setTimeout(() => {
+        draggingIconId.current = id;
+        offset.current = {
+          x: startX - icon.x,
+          y: startY - icon.y,
+        };
+        if (window.navigator.vibrate) window.navigator.vibrate(50);
+      }, 500);
     }
   };
 
@@ -314,16 +334,26 @@ export default function Desktop() {
   };
 
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
+    const handleMouseMove = (e: MouseEvent | TouchEvent) => {
+      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+
+      if (draggingIconId.current || draggingWindowId.current) {
+        if ("touches" in e) {
+          if (e.cancelable) e.preventDefault();
+        }
+      }
+
       if (draggingIconId.current) {
+        if (touchTimer.current) clearTimeout(touchTimer.current);
         const currentId = draggingIconId.current;
         setIcons((prev) => {
           const updatedIcons = prev.map((icon) =>
             icon.id === currentId
               ? {
                   ...icon,
-                  x: e.clientX - offset.current.x,
-                  y: e.clientY - offset.current.y,
+                  x: clientX - offset.current.x,
+                  y: clientY - offset.current.y,
                 }
               : icon,
           );
@@ -351,8 +381,8 @@ export default function Desktop() {
             window.id === draggingWindowId.current
               ? {
                   ...window,
-                  x: e.clientX - offset.current.x,
-                  y: e.clientY - offset.current.y,
+                  x: clientX - offset.current.x,
+                  y: clientY - offset.current.y,
                 }
               : window,
           ),
@@ -361,6 +391,11 @@ export default function Desktop() {
     };
 
     const handleMouseUp = () => {
+      if (touchTimer.current) {
+        clearTimeout(touchTimer.current);
+        touchTimer.current = null;
+      }
+
       if (draggingIconId.current) {
         const currentIconId = draggingIconId.current;
         const draggedIcon = icons.find((i) => i.id === currentIconId);
@@ -400,9 +435,13 @@ export default function Desktop() {
 
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
+    window.addEventListener("touchmove", handleMouseMove, { passive: false });
+    window.addEventListener("touchend", handleMouseUp);
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("touchmove", handleMouseMove);
+      window.removeEventListener("touchend", handleMouseUp);
     };
   }, [fileSystem, icons, isMobile]);
 
@@ -453,6 +492,7 @@ export default function Desktop() {
             y={icon.y}
             isHighlighted={icon.id === "trash" && isOverTrash}
             onMouseDown={(e) => handleMouseDown(e, icon.id)}
+            onTouchStart={(e) => handleTouchStart(e, icon.id)}
             onDoubleClick={() => handleWindowOpen(icon.id)}
           />
         ))}
@@ -755,7 +795,7 @@ function Window({
       </div>
 
       {/* Window Content */}
-      <div className="flex-1 overflow-hidden custom-scrollbar bg-white dark:bg-transparent">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar bg-white dark:bg-transparent">
         {children}
       </div>
 
@@ -808,6 +848,7 @@ function DesktopIcon({
   y,
   isHighlighted,
   onMouseDown,
+  onTouchStart,
   onDoubleClick,
 }: {
   icon: React.ReactNode;
@@ -816,6 +857,7 @@ function DesktopIcon({
   y: number;
   isHighlighted?: boolean;
   onMouseDown: (e: React.MouseEvent) => void;
+  onTouchStart: (e: React.TouchEvent) => void;
   onDoubleClick: () => void;
 }) {
   const isMobile = useIsMobile();
@@ -825,7 +867,11 @@ function DesktopIcon({
       className={`absolute flex flex-col items-center gap-1 md:gap-2 group w-20 md:w-24 transition-transform hover:scale-105 active:scale-95 active:cursor-grabbing select-none ${isHighlighted ? "scale-110" : ""}`}
       style={{ left: x, top: y }}
       onMouseDown={onMouseDown}
+      onTouchStart={onTouchStart}
       onDoubleClick={onDoubleClick}
+      onClick={() => {
+        if (isMobile) onDoubleClick();
+      }}
     >
       <div
         className={`p-3 md:p-4 rounded-xl border transition-all duration-300 shadow-2xl ${isHighlighted ? "bg-red-500/20 border-red-500 shadow-red-500/40 animate-pulse" : "bg-white/80 dark:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800 group-hover:bg-emerald-500/10 dark:group-hover:bg-emerald-500/10 group-hover:border-emerald-500/30 group-hover:shadow-emerald-500/10"}`}
