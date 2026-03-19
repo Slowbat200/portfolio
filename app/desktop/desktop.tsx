@@ -44,10 +44,11 @@ interface WindowData {
 }
 
 export default function Desktop() {
-  const { setState, fileSystem, setFileSystem } = useSystem();
+  const { setState, fileSystem, setFileSystem, appToOpen } = useSystem();
   const isMobile = useIsMobile();
   const [isStartMenuOpen, setIsStartMenuOpen] = useState(false);
   const [isOverTrash, setIsOverTrash] = useState(false);
+
   const [windows, setWindows] = useState<WindowData[]>([
     {
       id: "identity",
@@ -146,7 +147,14 @@ export default function Desktop() {
     },
   ]);
 
- useEffect(() => {
+  // Effect to listen for app open requests from SystemContext
+  useEffect(() => {
+    if (appToOpen) {
+      handleWindowOpen(appToOpen);
+    }
+  }, [appToOpen]);
+
+  useEffect(() => {
     setTimeout(() => setLoading(false), 2000);
   }, []);
 
@@ -317,9 +325,7 @@ export default function Desktop() {
 
   const handleWindowMaximize = (id: string) => {
     setWindows((prev) =>
-      prev.map((w) =>
-        w.id === id ? { ...w, isMaximized: !w.isMaximized } : w,
-      ),
+      prev.map((w) => (w.id === id ? { ...w, isMaximized: !w.isMaximized } : w)),
     );
   };
 
@@ -347,34 +353,32 @@ export default function Desktop() {
       if (draggingIconId.current) {
         if (touchTimer.current) clearTimeout(touchTimer.current);
         const currentId = draggingIconId.current;
+        let currentIconX = 0;
+        let currentIconY = 0;
+
         setIcons((prev) => {
-          const updatedIcons = prev.map((icon) =>
-            icon.id === currentId
-              ? {
-                  ...icon,
-                  x: clientX - offset.current.x,
-                  y: clientY - offset.current.y,
-                }
-              : icon,
-          );
-
-          // Calculate collision for trash bin after updating positions
-          const trashIcon = updatedIcons.find((i) => i.id === "trash");
-          const draggedIcon = updatedIcons.find((i) => i.id === currentId);
-
-          if (trashIcon && draggedIcon && draggedIcon.id !== "trash") {
-            const dx = draggedIcon.x - trashIcon.x;
-            const dy = draggedIcon.y - trashIcon.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            // We need to update isOverTrash outside this setIcons call
-            // But since handleMouseMove is an event handler, we can just call it here
-            // Wait, React might complain if we call multiple state setters here
-            // but it's much better than inside the updater.
-            setTimeout(() => setIsOverTrash(distance < 60), 0);
-          }
+          const updatedIcons = prev.map((icon) => {
+            if (icon.id === currentId) {
+              const newX = clientX - offset.current.x;
+              const newY = clientY - offset.current.y;
+              currentIconX = newX;
+              currentIconY = newY;
+              return { ...icon, x: newX, y: newY };
+            }
+            return icon;
+          });
 
           return updatedIcons;
         });
+
+        // Collision detection using the latest calculated positions
+        const trashIcon = icons.find((i) => i.id === "trash");
+        if (trashIcon && currentId !== "trash") {
+          const dx = currentIconX - trashIcon.x;
+          const dy = currentIconY - trashIcon.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          setIsOverTrash(distance < 60);
+        }
       } else if (draggingWindowId.current) {
         setWindows((prev) =>
           prev.map((window) =>

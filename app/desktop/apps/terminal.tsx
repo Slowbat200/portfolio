@@ -2,7 +2,12 @@
 
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useSystem, FileSystem } from "../../system/system-context";
+import { useSystem } from "../../system/system-context";
+
+// Define local FileSystem type
+export type FileSystem = {
+  [key: string]: string | FileSystem;
+};
 
 type HistoryItem = {
   type: "input" | "output";
@@ -10,18 +15,33 @@ type HistoryItem = {
   cwd?: string;
 };
 
+// Define initial terminal file system
+const initialTerminalFS: FileSystem = {
+  Desktop: {
+    "identity.exe": "SYSTEM_APPLICATION: identity_profile",
+    "projects.exe": "SYSTEM_APPLICATION: project_archives",
+    "settings.exe": "SYSTEM_APPLICATION: core_settings",
+    "trash.exe": "SYSTEM_APPLICATION: trash_bin",
+  },
+};
+
 export default function TerminalApp() {
-  const { fileSystem, setFileSystem } = useSystem();
+  const { openApp } = useSystem();
+
+  // Terminal manages its own local file system state
+  const [terminalFS, setTerminalFS] = useState<FileSystem>(initialTerminalFS);
+
   const [history, setHistory] = useState<HistoryItem[]>([
     {
       type: "output",
-      content: "Welcome to Terminal v1.0.0\nType 'help' for a list of available commands.",
+      content:
+        "Welcome to Terminal v1.0.0\nType 'help' for a list of available commands.",
     },
   ]);
   const [currentInput, setCurrentInput] = useState("");
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-  const [cwd, setCwd] = useState<string[]>([]); // Empty array means root ~
+  const [cwd, setCwd] = useState<string[]>(["Desktop"]); // Start in Desktop
   const inputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -38,14 +58,12 @@ export default function TerminalApp() {
   // Scroll to bottom when history changes
   useEffect(() => {
     if (bottomRef.current) {
-      // Use scrollIntoView but with options to minimize impact
-      // block: "nearest" is often better than "smooth" for preventing global shifts
       bottomRef.current.scrollIntoView({ behavior: "auto", block: "nearest" });
     }
   }, [history]);
 
   const resolvePath = (path: string[]): string | FileSystem | undefined => {
-    let current: string | FileSystem | undefined = fileSystem;
+    let current: string | FileSystem | undefined = terminalFS;
     for (const segment of path) {
       if (typeof current === "object" && current !== null) {
         current = current[segment];
@@ -68,14 +86,16 @@ export default function TerminalApp() {
   const handleCommand = (cmdString: string) => {
     const trimmedCmd = cmdString.trim();
     if (!trimmedCmd) {
-      setHistory((prev) => [...prev, { type: "input", content: "", cwd: formatCwd(cwd) }]);
+      setHistory((prev) => [
+        ...prev,
+        { type: "input", content: "", cwd: formatCwd(cwd) },
+      ]);
       return;
     }
 
     const [cmd, ...args] = trimmedCmd.split(/\s+/);
-    
-    // Add to command history
-    setCommandHistory(prev => [...prev, cmdString]);
+
+    setCommandHistory((prev) => [...prev, cmdString]);
     setHistoryIndex(-1);
 
     const newHistory: HistoryItem[] = [
@@ -98,143 +118,9 @@ export default function TerminalApp() {
   echo [txt]- Print text to stdout
   mkdir [dir]- Create a directory
   touch [file]- Create a file
-  rm [file] - Remove a file or directory (use -r for dir)
+  rm [file] - Remove a file
   rmdir [dir]- Remove an empty directory
-  mv [src] [dst]- Move a file or directory
-  restore [file]- Restore a file from trash`;
-        break;
-
-      case "mv":
-        if (args.length < 2) {
-          output = "mv: missing destination file operand after '" + (args[0] || "") + "'";
-        } else {
-          const src = args[0];
-          const dst = args[1];
-          const currentDir = getDirectory(cwd);
-          
-          if (currentDir && src in currentDir) {
-            const newFileSystem = JSON.parse(JSON.stringify(fileSystem));
-            
-            // Get source ptr
-            let srcPtr = newFileSystem;
-            for (const segment of cwd) {
-              srcPtr = srcPtr[segment];
-            }
-            const item = srcPtr[src];
-            
-            // Handle destination
-            if (dst === "Trash" || dst === "/Trash" || dst === "~/Trash") {
-               if (!newFileSystem.Trash) newFileSystem.Trash = {};
-               newFileSystem.Trash[src] = item;
-               delete srcPtr[src];
-               setFileSystem(newFileSystem);
-               output = "";
-            } else {
-              // Simple move in same directory or simple path support
-              // For now, let's keep it simple: move to another name in current dir
-              srcPtr[dst] = item;
-              delete srcPtr[src];
-              setFileSystem(newFileSystem);
-              output = "";
-            }
-          } else {
-            output = `mv: cannot stat '${src}': No such file or directory`;
-          }
-        }
-        break;
-
-      case "restore":
-        if (args.length === 0) {
-          output = "restore: missing operand";
-        } else {
-          const target = args[0];
-          const trash = fileSystem["Trash"] as any;
-          if (trash && target in trash) {
-            const newFileSystem = JSON.parse(JSON.stringify(fileSystem));
-            const item = newFileSystem.Trash[target];
-            
-            // Restore to current directory
-            let ptr = newFileSystem;
-            for (const segment of cwd) {
-              ptr = ptr[segment];
-            }
-            ptr[target] = item;
-            delete newFileSystem.Trash[target];
-            
-            setFileSystem(newFileSystem);
-            output = `Restored '${target}' to ${formatCwd(cwd)}`;
-          } else {
-            output = `restore: '${target}' not found in trash`;
-          }
-        }
-        break;
-
-      case "rm":
-        if (args.length === 0) {
-          output = "rm: missing operand";
-        } else {
-          let target = "";
-          let recursive = false;
-          
-          if (args[0] === "-r" || args[0] === "-rf") {
-            recursive = true;
-            target = args[1];
-          } else {
-            target = args[0];
-          }
-
-          if (!target) {
-            output = "rm: missing operand";
-            break;
-          }
-
-          const currentDir = getDirectory(cwd);
-          if (currentDir && target in currentDir) {
-            const isDir = typeof currentDir[target] === "object";
-            if (isDir && !recursive) {
-              output = `rm: cannot remove '${target}': Is a directory (use -r)`;
-            } else {
-              const newFileSystem = JSON.parse(JSON.stringify(fileSystem));
-              let ptr = newFileSystem;
-              for (const segment of cwd) {
-                ptr = ptr[segment];
-              }
-              delete ptr[target];
-              setFileSystem(newFileSystem);
-              output = "";
-            }
-          } else {
-            output = `rm: cannot remove '${target}': No such file or directory`;
-          }
-        }
-        break;
-
-      case "rmdir":
-        if (args.length === 0) {
-          output = "rmdir: missing operand";
-        } else {
-          const target = args[0];
-          const currentDir = getDirectory(cwd);
-          if (currentDir && target in currentDir) {
-            const content = currentDir[target];
-            if (typeof content !== "object") {
-              output = `rmdir: failed to remove '${target}': Not a directory`;
-            } else if (Object.keys(content).length > 0) {
-              output = `rmdir: failed to remove '${target}': Directory not empty`;
-            } else {
-              const newFileSystem = JSON.parse(JSON.stringify(fileSystem));
-              let ptr = newFileSystem;
-              for (const segment of cwd) {
-                ptr = ptr[segment];
-              }
-              delete ptr[target];
-              setFileSystem(newFileSystem);
-              output = "";
-            }
-          } else {
-            output = `rmdir: failed to remove '${target}': No such file or directory`;
-          }
-        }
+  [app].exe - Launch system applications`;
         break;
 
       case "clear":
@@ -277,7 +163,6 @@ export default function TerminalApp() {
           } else if (target === "~") {
             setCwd([]);
           } else {
-            // Support simple relative paths for now
             const pathParts = target.split("/").filter(Boolean);
             let newCwd = [...cwd];
             let isValid = true;
@@ -303,6 +188,34 @@ export default function TerminalApp() {
         }
         break;
 
+        case "rmdir":
+        if (args.length === 0) {
+          output = "rmdir: missing operand";
+        } else {
+          const target = args[0];
+          const currentDir = getDirectory(cwd);
+          if (currentDir && target in currentDir) {
+            const content = currentDir[target];
+            if (typeof content !== "object") {
+              output = `rmdir: failed to remove '${target}': Not a directory`;
+            } else if (Object.keys(content).length > 0) {
+              output = `rmdir: failed to remove '${target}': Directory not empty`;
+            } else {
+              const newFileSystem = JSON.parse(JSON.stringify(terminalFS));
+              let ptr = newFileSystem;
+              for (const segment of cwd) {
+                ptr = ptr[segment];
+              }
+              delete ptr[target];
+              setTerminalFS(newFileSystem);
+              output = "";
+            }
+          } else {
+            output = `rmdir: failed to remove '${target}': No such file or directory`;
+          }
+        }
+        break;
+
       case "cat":
         if (args.length === 0) {
           output = "cat: missing operand";
@@ -321,7 +234,7 @@ export default function TerminalApp() {
           }
         }
         break;
-        
+
       case "mkdir":
         if (args.length === 0) {
           output = "mkdir: missing operand";
@@ -329,24 +242,18 @@ export default function TerminalApp() {
           const dirName = args[0];
           const currentDir = getDirectory(cwd);
           if (currentDir) {
-             if (currentDir[dirName]) {
-                output = `mkdir: cannot create directory '${dirName}': File exists`;
-             } else {
-                // We need to update fileSystem state deeply. 
-                // Since this is a simple mock, we can clone and update.
-                // However, 'getDirectory' returns a reference to the nested object in 'fileSystem' state?
-                // No, state updates must be immutable.
-                
-                // Deep clone helper
-                const newFileSystem = JSON.parse(JSON.stringify(fileSystem));
-                let ptr = newFileSystem;
-                for (const segment of cwd) {
-                  ptr = ptr[segment];
-                }
-                ptr[dirName] = {};
-                setFileSystem(newFileSystem);
-                output = "";
-             }
+            if (currentDir[dirName]) {
+              output = `mkdir: cannot create directory '${dirName}': File exists`;
+            } else {
+              const newFS = JSON.parse(JSON.stringify(terminalFS));
+              let ptr = newFS;
+              for (const segment of cwd) {
+                ptr = ptr[segment];
+              }
+              ptr[dirName] = {};
+              setTerminalFS(newFS);
+              output = "";
+            }
           }
         }
         break;
@@ -355,26 +262,55 @@ export default function TerminalApp() {
         if (args.length === 0) {
           output = "touch: missing operand";
         } else {
-           const fileName = args[0];
-           const currentDir = getDirectory(cwd);
-           if (currentDir) {
-              // Deep clone and update
-              const newFileSystem = JSON.parse(JSON.stringify(fileSystem));
-              let ptr = newFileSystem;
-              for (const segment of cwd) {
-                ptr = ptr[segment];
-              }
-              // Only create if it doesn't exist, or update timestamp (mocked by doing nothing if exists)
-              if (!ptr[fileName]) {
-                 ptr[fileName] = "";
-                 setFileSystem(newFileSystem);
-              }
-           }
+          const fileName = args[0];
+          const currentDir = getDirectory(cwd);
+          if (currentDir) {
+            const newFS = JSON.parse(JSON.stringify(terminalFS));
+            let ptr = newFS;
+            for (const segment of cwd) {
+              ptr = ptr[segment];
+            }
+            if (!ptr[fileName]) {
+              ptr[fileName] = "";
+              setTerminalFS(newFS);
+            }
+          }
+        }
+        break;
+
+      case "rm":
+        if (args.length === 0) {
+          output = "rm: missing operand";
+        } else {
+          const target = args[0];
+          const currentDir = getDirectory(cwd);
+          if (currentDir && target in currentDir) {
+            const newFS = JSON.parse(JSON.stringify(terminalFS));
+            let ptr = newFS;
+            for (const segment of cwd) {
+              ptr = ptr[segment];
+            }
+            delete ptr[target];
+            setTerminalFS(newFS);
+            output = "";
+          } else {
+            output = `rm: cannot remove '${target}': No such file or directory`;
+          }
         }
         break;
 
       default:
-        output = `${cmd}: command not found`;
+        // Check for .exe launch
+        const currentDir = getDirectory(cwd);
+        if (currentDir && cmd in currentDir && cmd.endsWith(".exe")) {
+          const appId = cmd.replace(".exe", "");
+          // Special case for projects.exe -> encrypted
+          const mappedId = appId === "projects" ? "encrypted" : appId;
+          openApp(mappedId);
+          output = `Launching ${appId}...`;
+        } else {
+          output = `${cmd}: command not found`;
+        }
     }
 
     if (output) {
@@ -390,7 +326,10 @@ export default function TerminalApp() {
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       if (commandHistory.length > 0) {
-        const newIndex = historyIndex === -1 ? commandHistory.length - 1 : Math.max(0, historyIndex - 1);
+        const newIndex =
+          historyIndex === -1
+            ? commandHistory.length - 1
+            : Math.max(0, historyIndex - 1);
         setHistoryIndex(newIndex);
         setCurrentInput(commandHistory[newIndex]);
       }
@@ -410,7 +349,7 @@ export default function TerminalApp() {
   };
 
   return (
-    <div 
+    <div
       className="bg-white dark:bg-black/80 h-full w-full font-mono text-xs text-zinc-800 dark:text-emerald-500 transition-colors overflow-hidden flex flex-col"
       onClick={handleContainerClick}
     >
@@ -420,15 +359,21 @@ export default function TerminalApp() {
             <div key={index} className="whitespace-pre-wrap break-all">
               {item.type === "input" ? (
                 <div className="flex gap-2 text-zinc-500 dark:text-emerald-400">
-                  <span className="font-bold">root@system:{item.cwd || "~"}$</span>
-                  <span className="text-zinc-900 dark:text-zinc-100">{item.content}</span>
+                  <span className="font-bold">
+                    root@system:{item.cwd || "~"}$
+                  </span>
+                  <span className="text-zinc-900 dark:text-zinc-100">
+                    {item.content}
+                  </span>
                 </div>
               ) : (
-                <div className="text-zinc-700 dark:text-emerald-500/90 whitespace-pre-wrap pl-4 mb-2">{item.content}</div>
+                <div className="text-zinc-700 dark:text-emerald-500/90 whitespace-pre-wrap pl-4 mb-2">
+                  {item.content}
+                </div>
               )}
             </div>
           ))}
-          
+
           <div className="flex gap-2 items-center">
             <span className="text-zinc-500 dark:text-emerald-400 font-bold shrink-0">
               root@system:{formatCwd(cwd)}$

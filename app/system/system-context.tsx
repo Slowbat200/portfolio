@@ -7,20 +7,9 @@ export type FileSystem = {
 };
 
 export const initialFileSystem: FileSystem = {
-  "about.txt": "I am a full-stack developer with a passion for building beautiful and functional applications.",
-  "contact.txt": "Email: user@example.com\nGitHub: github.com/user\nLinkedIn: linkedin.com/in/user",
-  "projects": {
-    "portfolio.txt": "This very portfolio! Built with Next.js and Tailwind CSS.",
-    "ecommerce.txt": "A full-featured e-commerce platform built with React and Node.js.",
-    "ai-chat.txt": "An AI-powered chat application using OpenAI API.",
-  },
-  "skills": {
-    "frontend.txt": "React, Next.js, TypeScript, Tailwind CSS, Framer Motion",
-    "backend.txt": "Node.js, Express, PostgreSQL, MongoDB, Supabase",
-    "tools.txt": "Git, Docker, AWS, Vercel",
-  },
-  "Trash": {},
-  "readme.md": "# Welcome to my interactive terminal portfolio!\n\nType 'help' to see available commands.",
+  "Desktop": {
+    "identity.exe": "SYSTEM_APPLICATION: identity_profile",
+    },
 };
 
 type SystemState = "initializing" | "booting" | "login" | "desktop" | "shutdown";
@@ -30,6 +19,8 @@ type SystemContextType = {
   setState: (s: SystemState) => void;
   fileSystem: FileSystem;
   setFileSystem: (fs: FileSystem) => void;
+  openApp: (id: string) => void;
+  appToOpen: string | null;
 };
 
 const SystemContext = createContext<SystemContextType | null>(null);
@@ -37,6 +28,7 @@ const SystemContext = createContext<SystemContextType | null>(null);
 export function SystemProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<SystemState>("initializing");
   const [fileSystem, setFileSystem] = useState<FileSystem>(initialFileSystem);
+  const [appToOpen, setAppToOpen] = useState<string | null>(null);
 
   useEffect(() =>{
     const booted = sessionStorage.getItem("booted");
@@ -65,8 +57,14 @@ export function SystemProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("fs_v1", JSON.stringify(newFs));
   };
 
+  const openApp = (id: string) => {
+    setAppToOpen(id);
+    // Reset after a short delay so it can be triggered again
+    setTimeout(() => setAppToOpen(null), 100);
+  };
+
   return (
-    <SystemContext.Provider value={{ state, setState, fileSystem, setFileSystem: updateFileSystem }}>
+    <SystemContext.Provider value={{ state, setState, fileSystem, setFileSystem: updateFileSystem, openApp, appToOpen } as any}>
       {children}
     </SystemContext.Provider>
   );
