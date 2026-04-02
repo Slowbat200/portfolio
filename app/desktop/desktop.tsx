@@ -330,17 +330,43 @@ export default function Desktop() {
 
   /**
    * Mouse down handler for windows to start dragging.
+   * If the window is maximized, it will shrink to normal size and follow the cursor.
    */
   const handleWindowMouseDown = (e: React.MouseEvent, id: string) => {
     const window = windows.find((w) => w.id === id);
-    if (window && !window.isMaximized) {
+    if (!window) return;
+
+    if (window.isMaximized && !isMobile) {
+      // Transition from maximized to normal size
+      const normalWidth = 600;
+      const headerHeight = 36;
+      
+      // Calculate new position so it's centered under mouse
+      const newX = e.clientX - normalWidth / 2;
+      const newY = e.clientY - headerHeight / 2;
+
+      setWindows((prev) => {
+        const maxZ = Math.max(...prev.map((w) => w.zIndex), 10);
+        return prev.map((w) =>
+          w.id === id
+            ? { ...w, isMaximized: false, x: newX, y: newY, zIndex: maxZ + 1 }
+            : w,
+        );
+      });
+
+      draggingWindowId.current = id;
+      offset.current = {
+        x: normalWidth / 2,
+        y: headerHeight / 2,
+      };
+    } else if (!window.isMaximized) {
       draggingWindowId.current = id;
       offset.current = {
         x: e.clientX - window.x,
         y: e.clientY - window.y,
       };
       bringToFront(id);
-    } else if (window) {
+    } else {
       bringToFront(id);
     }
   };
@@ -808,7 +834,7 @@ function Window({
         left: maximized ? 0 : x,
         top: maximized ? 0 : y,
         width: maximized ? "100%" : "600px",
-        height: maximized ? "calc(100% - 48px)" : "400px",
+        height: maximized ? "calc(100% - 0px)" : "400px",
         zIndex: maximized ? 100 : zIndex,
         transform: maximized ? "none" : undefined,
       }}
@@ -816,7 +842,7 @@ function Window({
       {/* Window Header */}
       <div
         className="h-10 md:h-9 bg-zinc-50/50 dark:bg-zinc-950/50 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-3 cursor-move select-none"
-        onMouseDown={!maximized ? onMouseDown : undefined}
+        onMouseDown={onMouseDown}
       >
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-emerald-500/50" />
@@ -830,7 +856,8 @@ function Window({
               e.stopPropagation();
               onMinimize();
             }}
-            className="p-2 md:p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors group"
+            onMouseDown={(e) => e.stopPropagation()}
+            className="p-2 md:p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-transform group"
           >
             <Minus className="w-4 h-4 md:w-3 md:h-3 text-zinc-400 dark:text-zinc-600 group-hover:text-zinc-900 dark:group-hover:text-zinc-400" />
           </button>
@@ -840,7 +867,8 @@ function Window({
                 e.stopPropagation();
                 onMaximize();
               }}
-              className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors group"
+              onMouseDown={(e) => e.stopPropagation()}
+              className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-transform group"
             >
               <Square className="w-3 h-3 text-zinc-400 dark:text-zinc-600 group-hover:text-zinc-900 dark:group-hover:text-zinc-400" />
             </button>
@@ -850,7 +878,8 @@ function Window({
               e.stopPropagation();
               onClose();
             }}
-            className="p-2 md:p-1 hover:bg-red-500/10 dark:hover:bg-red-500/20 rounded transition-colors group"
+            onMouseDown={(e) => e.stopPropagation()}
+            className="p-2 md:p-1 hover:bg-red-500/10 dark:hover:bg-red-500/20 rounded transition-transform group"
           >
             <X className="w-4 h-4 md:w-3 md:h-3 text-zinc-400 dark:text-zinc-600 group-hover:text-red-600 dark:group-hover:text-red-500" />
           </button>
