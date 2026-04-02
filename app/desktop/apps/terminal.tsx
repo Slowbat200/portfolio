@@ -15,22 +15,17 @@ type HistoryItem = {
   cwd?: string;
 };
 
-// Define initial terminal file system
-const initialTerminalFS: FileSystem = {
-  Desktop: {
-    "identity.exe": "SYSTEM_APPLICATION: identity_profile",
-    "projects.exe": "SYSTEM_APPLICATION: project_archives",
-    "settings.exe": "SYSTEM_APPLICATION: core_settings",
-    "trash.exe": "SYSTEM_APPLICATION: trash_bin",
-  },
-};
-
+/**
+ * TerminalApp component - A functional terminal emulator for SlowbatOS.
+ * Integrates with the global system context to provide filesystem access,
+ * command execution, and application launching.
+ * 
+ * @returns {JSX.Element} The terminal application UI
+ */
 export default function TerminalApp() {
-  const { openApp } = useSystem();
+  const { openApp, fileSystem, setFileSystem } = useSystem();
 
-  // Terminal manages its own local file system state
-  const [terminalFS, setTerminalFS] = useState<FileSystem>(initialTerminalFS);
-
+  // Terminal command history and output management
   const [history, setHistory] = useState<HistoryItem[]>([
     {
       type: "output",
@@ -41,7 +36,7 @@ export default function TerminalApp() {
   const [currentInput, setCurrentInput] = useState("");
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-  const [cwd, setCwd] = useState<string[]>(["Desktop"]); // Start in Desktop
+  const [cwd, setCwd] = useState<string[]>(["Desktop"]); // Default working directory
   const inputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -62,8 +57,13 @@ export default function TerminalApp() {
     }
   }, [history]);
 
+  /**
+   * Resolves a path array to an object or string in the filesystem.
+   * 
+   * @param {string[]} path - The filesystem path segments to resolve
+   */
   const resolvePath = (path: string[]): string | FileSystem | undefined => {
-    let current: string | FileSystem | undefined = terminalFS;
+    let current: string | FileSystem | undefined = fileSystem;
     for (const segment of path) {
       if (typeof current === "object" && current !== null) {
         current = current[segment];
@@ -74,15 +74,26 @@ export default function TerminalApp() {
     return current;
   };
 
+  /**
+   * Helper to get a directory object from a path.
+   */
   const getDirectory = (path: string[]): FileSystem | undefined => {
     const target = resolvePath(path);
     return typeof target === "object" ? target : undefined;
   };
 
+  /**
+   * Formats the current working directory for display in the prompt.
+   */
   const formatCwd = (path: string[]) => {
     return path.length === 0 ? "~" : "~/" + path.join("/");
   };
 
+  /**
+   * Main command handler for the terminal.
+   * 
+   * @param {string} cmdString - The raw command string input by the user
+   */
   const handleCommand = (cmdString: string) => {
     const trimmedCmd = cmdString.trim();
     if (!trimmedCmd) {
@@ -201,13 +212,13 @@ export default function TerminalApp() {
             } else if (Object.keys(content).length > 0) {
               output = `rmdir: failed to remove '${target}': Directory not empty`;
             } else {
-              const newFileSystem = JSON.parse(JSON.stringify(terminalFS));
+              const newFileSystem = JSON.parse(JSON.stringify(fileSystem));
               let ptr = newFileSystem;
               for (const segment of cwd) {
                 ptr = ptr[segment];
               }
               delete ptr[target];
-              setTerminalFS(newFileSystem);
+              setFileSystem(newFileSystem);
               output = "";
             }
           } else {
@@ -245,13 +256,13 @@ export default function TerminalApp() {
             if (currentDir[dirName]) {
               output = `mkdir: cannot create directory '${dirName}': File exists`;
             } else {
-              const newFS = JSON.parse(JSON.stringify(terminalFS));
+              const newFS = JSON.parse(JSON.stringify(fileSystem));
               let ptr = newFS;
               for (const segment of cwd) {
                 ptr = ptr[segment];
               }
               ptr[dirName] = {};
-              setTerminalFS(newFS);
+              setFileSystem(newFS);
               output = "";
             }
           }
@@ -265,14 +276,14 @@ export default function TerminalApp() {
           const fileName = args[0];
           const currentDir = getDirectory(cwd);
           if (currentDir) {
-            const newFS = JSON.parse(JSON.stringify(terminalFS));
+            const newFS = JSON.parse(JSON.stringify(fileSystem));
             let ptr = newFS;
             for (const segment of cwd) {
               ptr = ptr[segment];
             }
             if (!ptr[fileName]) {
               ptr[fileName] = "";
-              setTerminalFS(newFS);
+              setFileSystem(newFS);
             }
           }
         }
@@ -285,13 +296,13 @@ export default function TerminalApp() {
           const target = args[0];
           const currentDir = getDirectory(cwd);
           if (currentDir && target in currentDir) {
-            const newFS = JSON.parse(JSON.stringify(terminalFS));
+            const newFS = JSON.parse(JSON.stringify(fileSystem));
             let ptr = newFS;
             for (const segment of cwd) {
               ptr = ptr[segment];
             }
             delete ptr[target];
-            setTerminalFS(newFS);
+            setFileSystem(newFS);
             output = "";
           } else {
             output = `rm: cannot remove '${target}': No such file or directory`;
@@ -304,9 +315,7 @@ export default function TerminalApp() {
         const currentDir = getDirectory(cwd);
         if (currentDir && cmd in currentDir && cmd.endsWith(".exe")) {
           const appId = cmd.replace(".exe", "");
-          // Special case for projects.exe -> encrypted
-          const mappedId = appId === "projects" ? "encrypted" : appId;
-          openApp(mappedId);
+          openApp(appId);
           output = `Launching ${appId}...`;
         } else {
           output = `${cmd}: command not found`;

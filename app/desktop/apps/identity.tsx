@@ -1,6 +1,11 @@
+/**
+ * IdentityApp - Component for displaying user profile information.
+ * Showcases personal details and a brief bio in a styled container.
+ */
 export default function IdentityApp() {
   return (
     <div className="space-y-4 font-mono text-sm md:text-[15px] text-zinc-600 dark:text-emerald-500/90 p-4">
+      {/* Subject Profile Section */}
       <div className="p-3 border border-zinc-200 dark:border-emerald-500/20 bg-zinc-50 dark:bg-emerald-500/5 rounded">
         <p className="text-zinc-800 dark:text-emerald-400 font-bold mb-2 uppercase tracking-wider text-xs md:text-sm"> Subject_Profile</p>
         <div className="space-y-1">
@@ -9,6 +14,7 @@ export default function IdentityApp() {
           <p><span className="text-zinc-400 dark:text-zinc-500">LOCATION:</span> Secure_Node_CZ</p>
         </div>
       </div>
+      {/* Bio Data Section */}
       <div className="p-3 border border-zinc-200 dark:border-emerald-500/20 bg-zinc-50 dark:bg-emerald-500/5 rounded">
         <p className="text-zinc-800 dark:text-emerald-400 font-bold mb-2 uppercase tracking-wider text-xs md:text-sm">Bio_Data</p>
         <p className="text-zinc-600 dark:text-zinc-300 leading-relaxed">

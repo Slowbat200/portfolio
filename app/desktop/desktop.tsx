@@ -43,12 +43,19 @@ interface WindowData {
   content: React.ReactNode;
 }
 
+/**
+ * Desktop component - The primary shell of SlowbatOS.
+ * Handles window management, desktop icons, drag-and-drop logic,
+ * and responsive layout for mobile and desktop devices.
+ */
 export default function Desktop() {
+  // Global system state and filesystem access
   const { setState, fileSystem, setFileSystem, appToOpen } = useSystem();
   const isMobile = useIsMobile();
   const [isStartMenuOpen, setIsStartMenuOpen] = useState(false);
   const [isOverTrash, setIsOverTrash] = useState(false);
 
+  // Core window data management
   const [windows, setWindows] = useState<WindowData[]>([
     {
       id: "identity",
@@ -62,7 +69,7 @@ export default function Desktop() {
       content: <IdentityApp />,
     },
     {
-      id: "encrypted",
+      id: "projects",
       title: "PROJECT_ARCHIVES",
       isOpen: false,
       isMaximized: isMobile,
@@ -109,6 +116,7 @@ export default function Desktop() {
 
   const [loading, setLoading] = useState(true);
 
+  // Desktop icon positions and metadata
   const [icons, setIcons] = useState<IconPosition[]>([
     {
       id: "identity",
@@ -118,7 +126,7 @@ export default function Desktop() {
       icon: <User className="w-8 h-8 text-emerald-400" />,
     },
     {
-      id: "encrypted",
+      id: "projects",
       x: 24,
       y: 136,
       label: "Projects",
@@ -147,7 +155,7 @@ export default function Desktop() {
     },
   ]);
 
-  // Effect to listen for app open requests from SystemContext
+  // Effect to listen for app open requests from SystemContext (e.g., from Terminal)
   useEffect(() => {
     if (appToOpen) {
       handleWindowOpen(appToOpen);
@@ -158,7 +166,9 @@ export default function Desktop() {
     setTimeout(() => setLoading(false), 2000);
   }, []);
 
-  // Handle icon position persistence and responsive layout
+  /**
+   * Re-arranges icons for mobile or loads saved positions for desktop.
+   */
   useEffect(() => {
     if (isMobile) {
       // Re-arrange icons into two columns for mobile
@@ -189,7 +199,9 @@ export default function Desktop() {
     }
   }, [isMobile]);
 
-  // Sync dynamic icons from FileSystem
+  /**
+   * Syncs dynamic icons (folders/files) from the global FileSystem to the desktop.
+   */
   useEffect(() => {
     const desktopFolder = (fileSystem["Desktop"] as any) || {};
     const desktopFiles = Object.keys(desktopFolder);
@@ -197,11 +209,21 @@ export default function Desktop() {
     setIcons((prev) => {
       const systemIconIds = [
         "identity",
-        "encrypted",
+        "projects",
         "terminal",
         "settings",
         "trash",
       ];
+      
+      // Map desktop filenames to system icon IDs to avoid duplicates for built-in apps
+      const fileToSystemId: Record<string, string> = {
+        "identity.exe": "identity",
+        "projects.exe": "projects",
+        "terminal.exe": "terminal",
+        "settings.exe": "settings",
+        "trash.exe": "trash",
+      };
+
       const currentDynamicIcons = prev.filter(
         (icon) => !systemIconIds.includes(icon.id),
       );
@@ -216,8 +238,11 @@ export default function Desktop() {
         return desktopFiles.includes(fileName);
       });
 
-      // Add icons for new files
-      desktopFiles.forEach((fileName, index) => {
+      // Add icons for new files/folders created via terminal
+      desktopFiles.forEach((fileName) => {
+        // Skip if it's a system app already represented by a hardcoded icon
+        if (fileToSystemId[fileName]) return;
+        
         if (!currentDynamicIds.includes(fileName)) {
           const isDir = typeof desktopFolder[fileName] === "object";
           const iconCount = nextIcons.length;
@@ -242,6 +267,9 @@ export default function Desktop() {
     });
   }, [fileSystem, isMobile]);
 
+  /**
+   * Persists icon positions to localStorage.
+   */
   const saveIconPositions = (updatedIcons: IconPosition[]) => {
     const positions = updatedIcons.reduce((acc, icon) => {
       acc[icon.id] = { x: icon.x, y: icon.y };
@@ -255,6 +283,9 @@ export default function Desktop() {
   const offset = useRef({ x: 0, y: 0 });
   const touchTimer = useRef<NodeJS.Timeout | null>(null);
 
+  /**
+   * Mouse down handler for icons.
+   */
   const handleMouseDown = (e: React.MouseEvent, id: string) => {
     const icon = icons.find((i) => i.id === id);
     if (icon) {
@@ -266,7 +297,9 @@ export default function Desktop() {
     }
   };
 
-  // function for grabbing apps in mobile devices
+  /**
+   * Touch start handler with long-press logic for dragging on mobile.
+   */
   const handleTouchStart = (e: React.TouchEvent, id: string) => {
     const icon = icons.find((i) => i.id === id);
     if (icon) {
@@ -285,6 +318,9 @@ export default function Desktop() {
     }
   };
 
+  /**
+   * Brings a window to the front by increasing its z-index.
+   */
   const bringToFront = (id: string) => {
     setWindows((prev) => {
       const maxZ = Math.max(...prev.map((w) => w.zIndex), 10);
@@ -292,6 +328,9 @@ export default function Desktop() {
     });
   };
 
+  /**
+   * Mouse down handler for windows to start dragging.
+   */
   const handleWindowMouseDown = (e: React.MouseEvent, id: string) => {
     const window = windows.find((w) => w.id === id);
     if (window && !window.isMaximized) {
@@ -306,6 +345,9 @@ export default function Desktop() {
     }
   };
 
+  /**
+   * Opens a window and brings it to focus.
+   */
   const handleWindowOpen = (id: string) => {
     setWindows((prev) => {
       const maxZ = Math.max(...prev.map((w) => w.zIndex), 10);
@@ -317,18 +359,27 @@ export default function Desktop() {
     });
   };
 
+  /**
+   * Minimizes a window (hides it from view but keeps it in taskbar/active state).
+   */
   const handleWindowMinimize = (id: string) => {
     setWindows((prev) =>
       prev.map((w) => (w.id === id ? { ...w, isMinimized: true } : w)),
     );
   };
 
+  /**
+   * Toggles maximization of a window.
+   */
   const handleWindowMaximize = (id: string) => {
     setWindows((prev) =>
       prev.map((w) => (w.id === id ? { ...w, isMaximized: !w.isMaximized } : w)),
     );
   };
 
+  /**
+   * Closes a window.
+   */
   const handleWindowClose = (id: string) => {
     setWindows((prev) =>
       prev.map((w) => (w.id === id ? { ...w, isOpen: false } : w)),
@@ -339,6 +390,9 @@ export default function Desktop() {
     setIsStartMenuOpen((prev) => !prev);
   };
 
+  /**
+   * Global event listeners for dragging logic (mouse and touch).
+   */
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent | TouchEvent) => {
       const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
@@ -353,29 +407,24 @@ export default function Desktop() {
       if (draggingIconId.current) {
         if (touchTimer.current) clearTimeout(touchTimer.current);
         const currentId = draggingIconId.current;
-        let currentIconX = 0;
-        let currentIconY = 0;
+        
+        let newX = clientX - offset.current.x;
+        let newY = clientY - offset.current.y;
 
         setIcons((prev) => {
-          const updatedIcons = prev.map((icon) => {
+          return prev.map((icon) => {
             if (icon.id === currentId) {
-              const newX = clientX - offset.current.x;
-              const newY = clientY - offset.current.y;
-              currentIconX = newX;
-              currentIconY = newY;
               return { ...icon, x: newX, y: newY };
             }
             return icon;
           });
-
-          return updatedIcons;
         });
 
-        // Collision detection using the latest calculated positions
+        // Collision detection for dragging items over the Trash icon
         const trashIcon = icons.find((i) => i.id === "trash");
         if (trashIcon && currentId !== "trash") {
-          const dx = currentIconX - trashIcon.x;
-          const dy = currentIconY - trashIcon.y;
+          const dx = newX - trashIcon.x;
+          const dy = newY - trashIcon.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
           setIsOverTrash(distance < 60);
         }
@@ -394,7 +443,13 @@ export default function Desktop() {
       }
     };
 
-    const handleMouseUp = () => {
+    /**
+     * Handles dropping an icon or stopping a window drag.
+     */
+    const handleMouseUp = (e: MouseEvent | TouchEvent) => {
+      const clientX = "touches" in e ? (e.touches[0]?.clientX || e.changedTouches[0]?.clientX) : (e as MouseEvent).clientX;
+      const clientY = "touches" in e ? (e.touches[0]?.clientY || e.changedTouches[0]?.clientY) : (e as MouseEvent).clientY;
+
       if (touchTimer.current) {
         clearTimeout(touchTimer.current);
         touchTimer.current = null;
@@ -402,19 +457,23 @@ export default function Desktop() {
 
       if (draggingIconId.current) {
         const currentIconId = draggingIconId.current;
-        const draggedIcon = icons.find((i) => i.id === currentIconId);
         const trashIcon = icons.find((i) => i.id === "trash");
 
-        if (trashIcon && draggedIcon && draggedIcon.id !== "trash") {
-          const dx = draggedIcon.x - trashIcon.x;
-          const dy = draggedIcon.y - trashIcon.y;
+        if (trashIcon && currentIconId !== "trash") {
+          const currentX = clientX - offset.current.x;
+          const currentY = clientY - offset.current.y;
+          
+          const dx = currentX - trashIcon.x;
+          const dy = currentY - trashIcon.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
 
-          if (distance < 60 && draggedIcon.id.startsWith("fs-")) {
-            // Move to trash
-            const fileName = draggedIcon.id.replace("fs-", "");
+          // If dropped over trash, move to global Trash folder
+          if (distance < 60 && currentIconId.startsWith("fs-")) {
+            const fileName = currentIconId.replace("fs-", "");
             const newFs = JSON.parse(JSON.stringify(fileSystem));
-            const item = newFs.Desktop[fileName];
+            
+            const desktopFolder = newFs.Desktop || {};
+            const item = desktopFolder[fileName];
 
             if (item) {
               if (!newFs.Trash) newFs.Trash = {};
@@ -556,9 +615,9 @@ export default function Desktop() {
               />
               <StartMenuItem
                 icon={<Folder className="w-4 h-4" />}
-                label="Encrypted Projects"
+                label="Projects"
                 onClick={() => {
-                  handleWindowOpen("encrypted");
+                  handleWindowOpen("projects");
                   setIsStartMenuOpen(false);
                 }}
               />
