@@ -134,7 +134,7 @@ export default function TrashApp() {
                   {isDir ? (
                     <Folder className="w-10 h-10 text-blue-400/60 drop-shadow-lg dark:text-blue-400" />
                   ) : (
-                    <File className="w-10 h-10 text-zinc-500 drop-shadow-lg dark:text-zinc-200" />
+                    <File className="w-10 h-10 text-zinc-400 drop-shadow-lg dark:text-zinc-100" />
                   )}
                   
                   {/* Action Overlay for items in trash */}

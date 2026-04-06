@@ -20,6 +20,7 @@ export const initialFileSystem: FileSystem = {
     "identity.exe": "SYSTEM_APPLICATION: identity_profile",
     "projects.exe": "SYSTEM_APPLICATION: project_archives",
     "terminal.exe": "SYSTEM_APPLICATION: root_terminal",
+    // "music.exe": "SYSTEM_APPLICATION: media_player",
     "settings.exe": "SYSTEM_APPLICATION: core_settings",
     "trash.exe": "SYSTEM_APPLICATION: trash_bin",
   },

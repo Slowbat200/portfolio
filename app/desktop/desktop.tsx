@@ -16,12 +16,15 @@ import {
   RefreshCw,
   Power,
   Trash2,
+  File,
+  Music,
 } from "lucide-react";
 import IdentityApp from "./apps/identity";
 import ProjectsApp from "./apps/projects";
 import TerminalApp from "./apps/terminal";
 import SettingsApp from "./apps/settings";
 import TrashApp from "./apps/trash";
+// import MusicApp from "./apps/music";
 
 interface IconPosition {
   id: string;
@@ -90,6 +93,17 @@ export default function Desktop() {
       zIndex: 10,
       content: <TerminalApp />,
     },
+    // {
+    //   id: "music",
+    //   title: "MEDIA_PLAYER",
+    //   isOpen: false,
+    //   isMaximized: isMobile,
+    //   isMinimized: false,
+    //   x: isMobile ? 0 : 275,
+    //   y: isMobile ? 0 : 275,
+    //   zIndex: 10,
+    //   content: <MusicApp />,
+    // },
     {
       id: "settings",
       title: "CORE_SETTINGS",
@@ -140,16 +154,23 @@ export default function Desktop() {
       icon: <Terminal className="w-8 h-8 text-emerald-500" />,
     },
     {
-      id: "settings",
+      id: "music",
       x: 24,
       y: 360,
+      label: "Music",
+      icon: <Music className="w-8 h-8 text-pink-400" />,
+    },
+    {
+      id: "settings",
+      x: 24,
+      y: 472,
       label: "Settings",
       icon: <Settings className="w-8 h-8 text-zinc-500 dark:text-zinc-400" />,
     },
     {
       id: "trash",
       x: 24,
-      y: 472,
+      y: 584,
       label: "Trash",
       icon: <Trash2 className="w-8 h-8 text-zinc-500 dark:text-zinc-400" />,
     },
@@ -211,6 +232,7 @@ export default function Desktop() {
         "identity",
         "projects",
         "terminal",
+        // "music",
         "settings",
         "trash",
       ];
@@ -220,6 +242,7 @@ export default function Desktop() {
         "identity.exe": "identity",
         "projects.exe": "projects",
         "terminal.exe": "terminal",
+        // "music.exe": "music",
         "settings.exe": "settings",
         "trash.exe": "trash",
       };
@@ -257,7 +280,7 @@ export default function Desktop() {
             icon: isDir ? (
               <Folder className="w-8 h-8 text-blue-400" />
             ) : (
-              <Terminal className="w-8 h-8 text-zinc-400" />
+              <File className="w-8 h-8 text-zinc-400" />
             ),
           });
         }
@@ -446,13 +469,18 @@ export default function Desktop() {
           });
         });
 
-        // Collision detection for dragging items over the Trash icon
+        // Collision detection for dragging items over the Trash icon (centered overlap)
         const trashIcon = icons.find((i) => i.id === "trash");
         if (trashIcon && currentId !== "trash") {
-          const dx = newX - trashIcon.x;
-          const dy = newY - trashIcon.y;
+          const trashCenterX = trashIcon.x + 48;
+          const trashCenterY = trashIcon.y + 48;
+          const iconCenterX = newX + 48;
+          const iconCenterY = newY + 48;
+
+          const dx = iconCenterX - trashCenterX;
+          const dy = iconCenterY - trashCenterY;
           const distance = Math.sqrt(dx * dx + dy * dy);
-          setIsOverTrash(distance < 60);
+          setIsOverTrash(distance < 80);
         }
       } else if (draggingWindowId.current) {
         setWindows((prev) =>
@@ -489,19 +517,25 @@ export default function Desktop() {
           const currentX = clientX - offset.current.x;
           const currentY = clientY - offset.current.y;
           
-          const dx = currentX - trashIcon.x;
-          const dy = currentY - trashIcon.y;
+          // Check collision with Trash icon (centered overlap)
+          const trashCenterX = trashIcon.x + 48; // md:w-24 is 96px
+          const trashCenterY = trashIcon.y + 48;
+          const iconCenterX = currentX + 48;
+          const iconCenterY = currentY + 48;
+
+          const dx = iconCenterX - trashCenterX;
+          const dy = iconCenterY - trashCenterY;
           const distance = Math.sqrt(dx * dx + dy * dy);
 
-          // If dropped over trash, move to global Trash folder
-          if (distance < 60 && currentIconId.startsWith("fs-")) {
+          // Increased threshold to 80px for easier dropping
+          if (distance < 80 && currentIconId.startsWith("fs-")) {
             const fileName = currentIconId.replace("fs-", "");
             const newFs = JSON.parse(JSON.stringify(fileSystem));
             
             const desktopFolder = newFs.Desktop || {};
             const item = desktopFolder[fileName];
 
-            if (item) {
+            if (item !== undefined) {
               if (!newFs.Trash) newFs.Trash = {};
               newFs.Trash[fileName] = item;
               delete newFs.Desktop[fileName];
@@ -655,6 +689,14 @@ export default function Desktop() {
                   setIsStartMenuOpen(false);
                 }}
               />
+              {/* <StartMenuItem
+                icon={<Music className="w-4 h-4" />}
+                label="Media Player"
+                onClick={() => {
+                  handleWindowOpen("music");
+                  setIsStartMenuOpen(false);
+                }}
+              /> */}
               <div className="h-px bg-zinc-100 dark:bg-emerald-500/10 my-2" />
               <StartMenuItem
                 icon={<User className="w-4 h-4" />}
